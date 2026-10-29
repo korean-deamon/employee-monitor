@@ -1,0 +1,26 @@
+# Direct dependencies. Install with setup.sh, which handles the two packages
+# below that cannot simply be pip-installed from here.
+#
+# NOT listed here, and installed separately by setup.sh:
+#
+#   torch, torchvision  — the build must match the machine's NVIDIA driver, so
+#                         the right one comes from PyTorch's own index, not PyPI.
+#   onnxruntime-gpu     — must never be installed alongside plain `onnxruntime`:
+#                         the CPU package shadows the GPU one and recognition
+#                         silently falls back to the CPU at ~10x the latency.
+
+fastapi==0.143.3
+uvicorn==0.54.0
+numpy==2.5.4
+
+# Face detection and 512-d embeddings (buffalo_l). Downloads ~326MB of model
+# weights into ~/.insightface on first use — that first run needs internet.
+insightface==2.1
+
+# Body detection, segmentation and pose (YOLOv8). Model files live in
+# backend/models/ and are fetched by setup.sh.
+ultralytics==8.4.178
+
+# Camera capture and drawing. The headless build is enough on a server with no
+# display; the full build is what a desktop needs for cv2.imshow during tuning.
+opencv-python==5.0.0.93

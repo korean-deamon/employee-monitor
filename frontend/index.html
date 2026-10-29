@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Davomat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1d23;
+    --muted: #6b7280;
+    --faint: #9ca3af;
+    --rule: #e3e6eb;
+    --band: #2b4acb;
+    --band-live: #1d9a6c;
+    --now: #c2410c;
+    --font: "IBM Plex Sans", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: var(--font); font-variant-numeric: tabular-nums;
+    line-height: 1.45; padding: 32px 26px 52px;
+  }
+  .wrap { max-width: 1140px; margin: 0 auto; }
+
+  header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    gap: 18px; flex-wrap: wrap; padding-bottom: 16px;
+    border-bottom: 2px solid var(--ink); margin-bottom: 26px;
+  }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .headline-now { text-align: right; }
+  .headline-now .time { font-size: 26px; font-weight: 600; }
+  .headline-now .inside { color: var(--muted); font-size: 14px; }
+
+  section { margin-bottom: 24px; }
+  h2 { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 12px; }
+
+  /* ── Timeline: the day at a glance ───────────────────────── */
+  .board { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 18px 20px 14px; }
+  .axis { position: relative; height: 18px; margin-left: var(--label-w, 150px); margin-bottom: 6px; }
+  .axis .hour { position: absolute; top: 0; transform: translateX(-50%); font-size: 12px; color: var(--faint); }
+  .row { display: flex; align-items: center; gap: 0; padding: 7px 0; border-top: 1px solid var(--rule); }
+  .row:first-of-type { border-top: none; }
+  .row .label { width: var(--label-w, 150px); padding-right: 14px; flex-shrink: 0; }
+  .row .label .nm { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .label .meta { font-size: 12px; color: var(--muted); }
+  .track { position: relative; flex: 1; height: 26px; background: var(--paper); border-radius: 4px; overflow: hidden; }
+  .track .grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--rule); }
+  .track .span { position: absolute; top: 5px; height: 16px; background: var(--band); border-radius: 3px; min-width: 2px; }
+  .track .span.live { background: var(--band-live); }
+  .track .nowline { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--now); }
+  .row .total { width: 92px; text-align: right; font-size: 13px; color: var(--muted); flex-shrink: 0; padding-left: 12px; }
+  .legend { display: flex; gap: 16px; align-items: center; margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+  .legend i { display: inline-block; width: 14px; height: 8px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+  .empty { padding: 36px 10px; text-align: center; color: var(--muted); }
+  .empty strong { display: block; color: var(--ink); font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .empty code { background: var(--paper); border: 1px solid var(--rule); padding: 2px 6px; border-radius: 4px; font-size: 12.5px; }
+
+  /* ── Secondary panels ────────────────────────────────────── */
+  .cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px 18px; }
+  .feed { border-radius: 7px; overflow: hidden; background: #11161c; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; }
+  .feed img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .feed-note { color: #8a97a4; font-size: 13px; padding: 18px; text-align: center; }
+  .feed-meta { display: flex; justify-content: space-between; margin-top: 9px; font-size: 12.5px; color: var(--muted); }
+
+  .events { list-style: none; }
+  .events li { display: flex; align-items: baseline; gap: 10px; padding: 8px 0; border-top: 1px solid var(--rule); font-size: 14px; }
+  .events li:first-child { border-top: none; }
+  .events time { color: var(--muted); font-size: 13px; width: 44px; flex-shrink: 0; }
+  .events .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 4px; }
+  .pill.in { background: #e8f3ee; color: #176b4c; }
+  .pill.out { background: #eef0f3; color: var(--muted); }
+  .events li { flex-wrap: wrap; }
+  .grade { font-size: 12.5px; color: var(--muted); }
+  .tag { font-size: 11.5px; padding: 1px 6px; border-radius: 3px;
+         background: var(--paper); border: 1px solid var(--rule); color: var(--muted); }
+  .tag.flag { background: #fdeceb; border-color: #f6cfcc; color: #b4231c; }
+  .late { color: var(--now); font-size: 12.5px; margin-left: 4px; }
+
+  /* Lateness is the number people argue about, so it is set large and in the
+     one warm colour nothing else on the page uses. */
+  .late-today { border-left: 3px solid var(--now); padding-left: 14px; margin-bottom: 18px; }
+  .late-head { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+  .late-row { display: flex; align-items: baseline; gap: 12px; padding: 5px 0; flex-wrap: wrap; }
+  .late-row .nm { font-weight: 600; font-size: 15px; }
+  .late-big { font-size: 20px; font-weight: 600; color: var(--now); }
+  .late-at { color: var(--faint); font-size: 12.5px; }
+  .late-none { color: var(--band-live); font-size: 14px; margin-bottom: 16px; }
+  .late-cell { color: var(--now); font-weight: 600; }
+  .late-sum th:first-child, .late-sum td:first-child { width: 34%; }
+  .late-all { margin-top: 16px; }
+  .late-all summary { cursor: pointer; font-size: 13px; color: var(--muted);
+                      padding: 8px 0; }
+  .late-all table { margin-top: 6px; }
+
+  table.sum { width: 100%; border-collapse: collapse; }
+  table.sum th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted);
+                 padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
+  table.sum td { padding: 10px 0; border-bottom: 1px solid var(--rule); font-size: 14px; }
+  table.sum tr:last-child td { border-bottom: none; }
+  table.sum td.nm { font-weight: 600; }
+  table.sum em { color: var(--band-live); font-style: normal; }
+
+  /* A stand in progress: the dashboard shows the same countdown the employee
+     is waiting through, so tuning the threshold needs only one screen. */
+  .standbar { height: 6px; border-radius: 3px; background: var(--rule); margin-top: 9px;
+              overflow: hidden; }
+  .standbar span { display: block; height: 100%; background: var(--band-live);
+                   transition: width .15s linear; }
+  .lastevent { margin-top: 9px; font-size: 13.5px; }
+  .lastevent .nm { font-weight: 600; }
+
+  .roster-strip { margin-top: 20px; font-size: 13.5px; color: var(--muted); }
+  .roster-strip b { color: var(--ink); font-weight: 600; }
+  .roster-strip .warn { color: #b4480f; }
+
+  :focus-visible { outline: 2px solid var(--band); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Davomat</h1>
+      <div class="sub" id="dateLine"></div>
+    </div>
+    <div class="headline-now">
+      <div class="time" id="clock">--:--</div>
+      <div class="inside" id="insideNow">—</div>
+    </div>
+  </header>
+
+  <section>
+    <h2>Bugungi kun</h2>
+    <div class="board" id="board"><div class="empty">Yuklanmoqda…</div></div>
+  </section>
+
+  <div class="cols">
+    <section class="panel">
+      <h2>Kamera</h2>
+      <div class="feed" id="feed"><div class="feed-note">Ulanmoqda…</div></div>
+      <div class="feed-meta">
+        <span id="camState">—</span>
+        <span id="unknownFaces"></span>
+      </div>
+      <div class="standbar"><span id="standBar" style="width:0"></span></div>
+      <div class="lastevent" id="lastEvent"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Kirish va chiqish</h2>
+      <ul class="events" id="events"><li>Yuklanmoqda…</li></ul>
+    </section>
+  </div>
+
+  <section>
+    <h2>Kechikishlar</h2>
+    <div class="board" id="late"><div class="empty">Yuklanmoqda…</div></div>
+  </section>
+
+  <section>
+    <h2>Kun hisobi</h2>
+    <div class="board" id="summary"><div class="empty">Yuklanmoqda…</div></div>
+  </section>
+
+  <p class="roster-strip" id="rosterStrip"></p>
+</div>
+
+<script>
+const api = async (p) => {
+  const r = await fetch(p);
+  if (r.status === 401) { document.body.innerHTML = "<p style='padding:40px'>Kirish uchun sahifani qayta yuklang.</p>"; throw new Error("401"); }
+  return r.json();
+};
+const pad = n => String(n).padStart(2, "0");
+const hhmm = iso => { const d = new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+
+function humanDuration(sec) {
+  const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60);
+  if (h && m) return `${h} soat ${m} daq`;
+  if (h) return `${h} soat`;
+  return `${m} daq`;
+}
+
+function tickClock() {
+  const d = new Date();
+  document.getElementById("clock").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  document.getElementById("dateLine").textContent =
+    d.toLocaleDateString("uz-UZ", { day: "numeric", month: "long", weekday: "long" });
+}
+
+/* The timeline is the page's centrepiece: one lane per person, real gaps shown. */
+function renderBoard(people, presentIds) {
+  const el = document.getElementById("board");
+  if (!people.length) {
+    el.innerHTML = `<div class="empty"><strong>Bugun hali hech kim qayd etilmadi</strong>
+      Kamera ro'yxatdagi odamni ko'rsa, shu yerda chiziq paydo bo'ladi.</div>`;
+    return;
+  }
+
+  const now = Date.now();
+  let start = Math.min(...people.map(p => new Date(p.first_seen).getTime()));
+  start = new Date(start).setMinutes(0, 0, 0);
+  let end = new Date(now).setMinutes(0, 0, 0) + 3600e3;
+  if (end - start < 4 * 3600e3) end = start + 4 * 3600e3;
+  const span = end - start;
+  const pct = t => ((new Date(t).getTime() - start) / span) * 100;
+
+  const hours = [];
+  for (let t = start; t <= end; t += 3600e3) hours.push(t);
+  const axis = hours.map(t =>
+    `<span class="hour" style="left:${pct(t)}%">${pad(new Date(t).getHours())}</span>`).join("");
+  const grid = hours.map(t => `<div class="grid" style="left:${pct(t)}%"></div>`).join("");
+
+  const rows = people.map(p => {
+    const live = presentIds.has(p.employee_id);
+    const bands = p.spans.map(s => {
+      const l = pct(s.start);
+      const w = Math.max(0.4, pct(s.end) - l);
+      return `<div class="span${live && s === p.spans[p.spans.length - 1] ? " live" : ""}"
+                   style="left:${l}%;width:${w}%"></div>`;
+    }).join("");
+    return `
+      <div class="row">
+        <div class="label">
+          <div class="nm">${p.name}</div>
+          <div class="meta">${hhmm(p.first_seen)} dan${live ? "" : " – " + hhmm(p.last_seen)}</div>
+        </div>
+        <div class="track">${grid}${bands}
+          <div class="nowline" style="left:${pct(now)}%"></div>
+        </div>
+        <div class="total">${humanDuration(p.total_seconds)}</div>
+      </div>`;
+  }).join("");
+
+  el.innerHTML = `<div class="axis">${axis}</div>${rows}
+    <div class="legend">
+      <span><i style="background:var(--band-live)"></i>hozir ofisda</span>
+      <span><i style="background:var(--band)"></i>bugun bo'lgan</span>
+      <span><i style="background:var(--now);width:2px;height:12px"></i>hozirgi vaqt</span>
+    </div>`;
+}
+
+// Display wording only. The database stores keldi/ketdi as the stable event
+// names; what the page calls them is a label, so trying other wording costs one
+// line here and never a migration.
+const EVENT_LABEL = { keldi: "kirdi", ketdi: "chiqdi" };
+const label = (e) => EVENT_LABEL[e] || e;
+
+// How a record came to exist decides how much it can be relied on, so the
+// weaker two sources say so on the face of the row rather than in a tooltip.
+const SOURCE_NOTE = {
+  first_sighting: "turmadi",
+  auto_close: "o'zi yopildi",
+  manual: "qo'lda",
+};
+
+function renderEvents(list) {
+  const el = document.getElementById("events");
+  if (!list.length) { el.innerHTML = `<li style="color:var(--muted)">Bugun hodisa yo'q</li>`; return; }
+  el.innerHTML = list.map(e => {
+    const note = SOURCE_NOTE[e.source];
+    const needsReason = e.grade.needs_reason && !e.reason;
+    return `
+    <li><time>${hhmm(e.ts)}</time>
+      <span class="nm">${e.name}</span>
+      <span class="pill ${e.event === "keldi" ? "in" : "out"}">${label(e.event)}</span>
+      <span class="grade">${e.grade.text}</span>
+      ${note ? `<span class="tag">${note}</span>` : ""}
+      ${e.reason ? `<span class="tag">${e.reason}</span>` : ""}
+      ${needsReason ? `<span class="tag flag">sabab yo'q</span>` : ""}
+    </li>`;
+  }).join("");
+}
+
+function renderSummary(data) {
+  const el = document.getElementById("summary");
+  if (!data.employees.length) {
+    el.innerHTML = `<div class="empty">Bugun hali yozuv yo'q</div>`;
+    return;
+  }
+  el.innerHTML = `<table class="sum">
+    <tr><th>Xodim</th><th>Kirdi</th><th>Chiqdi</th><th>Tanaffus</th><th>Ishlagan</th></tr>
+    ${data.employees.map(p => `
+      <tr>
+        <td class="nm">${p.name}${p.unexplained_early_leave
+            ? ` <span class="tag flag">sabab yo'q</span>` : ""}</td>
+        <td>${p.arrived ? hhmm(p.arrived) : "—"}
+            ${p.arrival_grade && p.arrival_grade.late_minutes
+              ? `<span class="late-cell">${p.arrival_grade.text}</span>` : ""}</td>
+        <td>${p.left ? hhmm(p.left) : (p.still_in ? "<em>ofisda</em>" : "—")}</td>
+        <td>${p.breaks.length
+              ? p.breaks.reduce((n, b) => n + b.seconds, 0) / 60 | 0 : 0}′</td>
+        <td>${dur(p.worked_seconds)}</td>
+      </tr>`).join("")}
+  </table>`;
+}
+
+function renderLate(data) {
+  const el = document.getElementById("late");
+  if (!data.arrivals.length) {
+    el.innerHTML = `<div class="empty">
+      <strong>Kechikish yo'q</strong>
+      Oxirgi 30 kunda hamma ${data.work_start} gacha kelgan.</div>`;
+    return;
+  }
+
+  const today = data.arrivals.filter(a => a.local_day === data.arrivals[0].local_day
+                                          && a.local_day === todayKey());
+  el.innerHTML = `
+    ${today.length ? `<div class="late-today">
+      <div class="late-head">Bugun kech qolganlar</div>
+      ${today.map(a => `<div class="late-row">
+        <span class="nm">${a.name}</span>
+        <span class="late-big">${a.late_text} kech</span>
+        <span class="late-at">kirdi ${a.time}</span>
+      </div>`).join("")}
+    </div>` : `<p class="late-none">Bugun hech kim kech qolmadi.</p>`}
+
+    <table class="sum late-sum">
+      <tr><th>Xodim</th><th>Kechikkan kun</th><th>Jami</th>
+          <th>O'rtacha</th><th>Eng ko'p</th></tr>
+      ${data.by_employee.map(p => `<tr>
+        <td class="nm">${p.name}</td>
+        <td>${p.days} kun</td>
+        <td class="late-cell">${p.total_text}</td>
+        <td>${p.average_minutes}′</td>
+        <td>${p.worst_minutes}′ <span class="late-at">${p.worst_day}</span></td>
+      </tr>`).join("")}
+    </table>
+
+    <details class="late-all">
+      <summary>Har bir kechikish (${data.arrivals.length} ta)</summary>
+      <table class="sum">
+        ${data.arrivals.map(a => `<tr>
+          <td>${a.local_day}</td>
+          <td class="nm">${a.name}</td>
+          <td>kirdi ${a.time}</td>
+          <td class="late-cell">${a.late_text} kech</td>
+        </tr>`).join("")}
+      </table>
+    </details>`;
+}
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function dur(seconds) {
+  if (!seconds) return "—";
+  const h = Math.floor(seconds / 3600), m = Math.round((seconds % 3600) / 60);
+  return h ? `${h} soat ${m} daq` : `${m} daqiqa`;
+}
+
+function renderRoster(people) {
+  const el = document.getElementById("rosterStrip");
+  if (!people.length) {
+    el.innerHTML = `Ro'yxat bo'sh. Xodim qo'shish: <b>python backend/enroll.py --name "Ism" --capture 5</b>`;
+    return;
+  }
+  el.innerHTML = "Ro'yxatdagilar: " + people.map(p =>
+    p.face_samples ? `<b>${p.name}</b>` : `<b>${p.name}</b> <span class="warn">(yuzi kiritilmagan)</span>`
+  ).join(", ");
+}
+
+let streaming = false;
+function startStream() {
+  if (streaming) return;
+  streaming = true;
+  const feed = document.getElementById("feed");
+  feed.innerHTML = `<img id="streamImg" alt="Kamera tasviri" src="/api/camera/stream">`;
+  document.getElementById("streamImg").addEventListener("error", () => {
+    streaming = false;
+    feed.innerHTML = `<div class="feed-note">Oqim uzildi, qayta ulanmoqda…</div>`;
+  });
+}
+
+let presentIds = new Set();
+async function refreshLive() {
+  const s = await api("/api/camera/status");
+  const online = !!s.online;
+  document.getElementById("camState").textContent = online ? "Tanish ishlayapti" : "Kamera ishlamayapti";
+  document.getElementById("unknownFaces").textContent =
+    online && s.unknown_faces ? `${s.unknown_faces} ta notanish yuz` : "";
+
+  document.getElementById("standBar").style.width =
+    `${Math.round((online ? s.stand_progress || 0 : 0) * 100)}%`;
+
+  const last = online ? s.last_event : null;
+  document.getElementById("lastEvent").innerHTML = !last ? "" : (
+    last.status === "already"
+      ? `<span class="nm">${last.name}</span> <span class="tag">allaqachon yozilgan · ${hhmm(last.ts)}</span>`
+      : `<span class="nm">${last.name}</span>
+         <span class="pill ${last.event === "keldi" ? "in" : "out"}">${label(last.event)}</span>
+         <span class="grade">${hhmm(last.ts)} · ${last.grade.text}</span>`);
+
+  const present = online ? (s.present || []) : [];
+  presentIds = new Set(present.map(p => p.employee_id));
+  document.getElementById("insideNow").textContent = present.length
+    ? `${present.length} kishi ofisda: ` + present.map(p => p.name).join(", ")
+    : "Hozir hech kim yo'q";
+
+  if (online) startStream();
+  else {
+    streaming = false;
+    document.getElementById("feed").innerHTML =
+      `<div class="feed-note">Tanish skripti ishga tushirilmagan.<br>backend/recognizer.py ni ishga tushiring.</div>`;
+  }
+}
+
+async function refreshBoard() {
+  const [tl, events, people, sum, late] = await Promise.all([
+    api("/api/timeline?days=1"), api("/api/attendance?days=1"),
+    api("/api/employees"), api("/api/summary"), api("/api/report/late?days=30"),
+  ]);
+  renderBoard(tl, presentIds);
+  renderEvents(events);
+  renderRoster(people);
+  renderSummary(sum);
+  renderLate(late);
+}
+
+tickClock();
+setInterval(tickClock, 10000);
+refreshLive().then(refreshBoard).catch(() => {});
+setInterval(() => refreshLive().catch(() => {}), 2000);
+setInterval(() => refreshBoard().catch(() => {}), 10000);
+</script>
+</body>
+</html>

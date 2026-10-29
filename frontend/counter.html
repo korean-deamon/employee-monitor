@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kirish hisobi</title>
+<style>
+  :root {
+    --paper: #f6f7f9; --surface: #fff; --ink: #1a1d23; --muted: #6b7280;
+    --faint: #9ca3af; --rule: #e3e6eb;
+    --in: #1d9a6c; --out: #c2410c; --line: #d99400;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+         background: var(--paper); color: var(--ink); line-height: 1.5; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 30px 16px 60px; }
+
+  header { display: flex; justify-content: space-between; align-items: flex-end;
+           padding-bottom: 14px; border-bottom: 2px solid var(--ink); margin-bottom: 26px;
+           flex-wrap: wrap; gap: 12px; }
+  h1 { font-size: 25px; font-weight: 600; letter-spacing: -.3px; }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  header a { color: var(--ink); font-size: 14px; text-decoration: none;
+             border-bottom: 1px solid var(--rule); }
+  h2 { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 12px; }
+  section { margin-bottom: 28px; }
+
+  /* The three numbers are the whole point of this page, so they are set far
+     larger than anything else and nothing competes with them. */
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .tile { background: var(--surface); border: 1px solid var(--rule);
+          border-radius: 10px; padding: 20px 22px; }
+  .tile .k { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .tile .v { font-size: 44px; font-weight: 600; letter-spacing: -1px; line-height: 1.1;
+             margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .tile.in .v { color: var(--in); }
+  .tile.out .v { color: var(--out); }
+  .tile .note { font-size: 12.5px; color: var(--faint); margin-top: 3px; }
+
+  .cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 22px; align-items: start; }
+  .panel { background: var(--surface); border: 1px solid var(--rule);
+           border-radius: 10px; padding: 18px 20px; }
+  .feed { background: #0f1115; border-radius: 8px; overflow: hidden; aspect-ratio: 4/3;
+          display: flex; align-items: center; justify-content: center; }
+  .feed img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .feed-note { color: #8b93a1; font-size: 13.5px; text-align: center; padding: 20px; }
+
+  .events { list-style: none; max-height: 320px; overflow-y: auto; }
+  .events li { display: flex; align-items: baseline; gap: 10px; padding: 8px 0;
+               border-top: 1px solid var(--rule); font-size: 14px; }
+  .events li:first-child { border-top: none; }
+  .events time { color: var(--faint); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .pill { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 4px; }
+  .pill.in { background: #e8f3ee; color: #176b4c; }
+  .pill.out { background: #fdeee6; color: #9a3412; }
+
+  .hours { display: flex; align-items: flex-end; gap: 3px; height: 110px; margin-top: 8px; }
+  .hours .h { flex: 1; display: flex; flex-direction: column-reverse; gap: 2px; }
+  .hours .bar { border-radius: 2px 2px 0 0; min-height: 2px; }
+  .hours .bar.in { background: var(--in); }
+  .hours .bar.out { background: var(--out); opacity: .75; }
+  .hours .lbl { font-size: 10px; color: var(--faint); text-align: center; margin-top: 4px; }
+
+  .off { background: #fdf3e7; border: 1px solid #f0dcc0; color: #8a4b10;
+         border-radius: 9px; padding: 15px 18px; font-size: 14px; }
+  .off code { background: #fff; border: 1px solid #ecd9bd; padding: 1px 6px;
+              border-radius: 4px; font-size: 13px; }
+  .legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--muted);
+            margin-top: 12px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px;
+              margin-right: 5px; vertical-align: -1px; }
+  .empty { padding: 30px 10px; text-align: center; color: var(--muted); }
+
+  @media (max-width: 760px) {
+    .cols { grid-template-columns: 1fr; }
+    .tiles { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Kirish hisobi</h1>
+      <div class="sub" id="dayLine">—</div>
+    </div>
+    <a href="/">← Davomatga qaytish</a>
+  </header>
+
+  <div id="offNote"></div>
+
+  <section>
+    <div class="tiles">
+      <div class="tile in"><div class="k">Kirdi</div><div class="v" id="vIn">—</div>
+        <div class="note">bugun eshikdan kirganlar</div></div>
+      <div class="tile out"><div class="k">Chiqdi</div><div class="v" id="vOut">—</div>
+        <div class="note">bugun eshikdan chiqqanlar</div></div>
+      <div class="tile"><div class="k">Hozir ichkarida</div><div class="v" id="vInside">—</div>
+        <div class="note">kirdi − chiqdi, taxminiy</div></div>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section class="panel">
+      <h2>Kamera va chiziq</h2>
+      <div class="feed" id="feed"><div class="feed-note">Ulanmoqda…</div></div>
+      <div class="legend">
+        <span><i style="background:var(--line)"></i>sanash chizig'i</span>
+        <span><i style="background:var(--in)"></i>kirdi</span>
+        <span><i style="background:var(--out)"></i>chiqdi</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Oxirgi o'tishlar</h2>
+      <ul class="events" id="events"><li>Yuklanmoqda…</li></ul>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Soatlar bo'yicha</h2>
+    <div class="hours" id="hours"></div>
+    <div id="hourLabels" style="display:flex;gap:3px"></div>
+  </section>
+</div>
+
+<script>
+const api = async (p) => {
+  const r = await fetch(p);
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+};
+const pad = (n) => String(n).padStart(2, "0");
+const hhmm = (iso) => {
+  const d = new Date(iso);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+let streaming = false;
+function startStream() {
+  if (streaming) return;
+  streaming = true;
+  const feed = document.getElementById("feed");
+  feed.innerHTML = `<img id="cstream" alt="Kamera" src="/api/counter/stream">`;
+  document.getElementById("cstream").addEventListener("error", () => {
+    streaming = false;
+    feed.innerHTML = `<div class="feed-note">Oqim uzildi, qayta ulanmoqda…</div>`;
+  });
+}
+
+function renderHours(hourly) {
+  const byHour = {};
+  for (const row of hourly) {
+    byHour[row.hour] = byHour[row.hour] || { kirdi: 0, chiqdi: 0 };
+    byHour[row.hour][row.direction] = row.n;
+  }
+  const hours = Object.keys(byHour).sort();
+  const box = document.getElementById("hours");
+  const labels = document.getElementById("hourLabels");
+  if (!hours.length) {
+    box.innerHTML = `<div class="empty" style="flex:1">Bugun o'tish yo'q</div>`;
+    labels.innerHTML = "";
+    return;
+  }
+  const peak = Math.max(...hours.map(h => byHour[h].kirdi + byHour[h].chiqdi), 1);
+  box.innerHTML = hours.map(h => `
+    <div class="h">
+      <div class="bar in"  style="height:${(byHour[h].kirdi  / peak) * 100}%"></div>
+      <div class="bar out" style="height:${(byHour[h].chiqdi / peak) * 100}%"></div>
+    </div>`).join("");
+  labels.innerHTML = hours.map(h => `<div class="lbl" style="flex:1">${h}</div>`).join("");
+}
+
+async function refresh() {
+  let data;
+  try { data = await api("/api/counter/today"); } catch { return; }
+
+  document.getElementById("dayLine").textContent = data.day;
+  document.getElementById("vIn").textContent = data.in;
+  document.getElementById("vOut").textContent = data.out;
+  document.getElementById("vInside").textContent = data.inside;
+
+  document.getElementById("offNote").innerHTML = data.enabled ? "" : `
+    <div class="off" style="margin-bottom:24px">
+      <b>Sanash o'chirilgan.</b> Yoqish uchun <code>data/config.json</code> da
+      <code>"counter_enabled": true</code> qilib, <code>./emon restart</code> deysiz.
+      Raqamlar va chiziq shundan keyin ishlaydi.
+    </div>`;
+
+  const list = document.getElementById("events");
+  list.innerHTML = data.recent.length
+    ? data.recent.map(e => `
+        <li><time>${hhmm(e.ts)}</time>
+          <span class="pill ${e.direction === "kirdi" ? "in" : "out"}">${e.direction}</span>
+        </li>`).join("")
+    : `<li style="color:var(--muted)">Hali o'tish yo'q</li>`;
+
+  renderHours(data.hourly);
+  if (data.enabled) startStream();
+}
+
+refresh();
+setInterval(() => refresh().catch(() => {}), 3000);
+</script>
+</body>
+</html>

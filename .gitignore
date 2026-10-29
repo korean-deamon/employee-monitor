@@ -1,0 +1,24 @@
+# Secrets
+.env
+
+# Everything the running system produces or is given: the database (face
+# embeddings and the whole attendance history), the enrolment photographs of
+# real people, generated passwords, logs and the live config. None of it
+# belongs in a repository — not even a private one.
+data/
+
+# Virtual environment (several GB) — rebuilt by setup.sh
+venv/
+
+# Model weights (~42MB) — downloaded by setup.sh
+backend/models/*.pt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Editors
+.vscode/
+.idea/
+*.swp

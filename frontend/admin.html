@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Xodimlarni boshqarish</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f6f7f9; --surface: #fff; --ink: #1a1d23; --muted: #6b7280;
+    --faint: #9ca3af; --rule: #e3e6eb; --accent: #2b4acb; --ok: #176b4c;
+    --ok-bg: #e8f3ee; --danger: #b4231f; --warn-bg: #fdf3e7; --warn-ink: #8a4b10;
+    --font: "IBM Plex Sans", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--font);
+         font-variant-numeric: tabular-nums; line-height: 1.45; padding: 32px 26px 52px; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px;
+           flex-wrap: wrap; padding-bottom: 16px; border-bottom: 2px solid var(--ink); margin-bottom: 26px; }
+  h1 { font-size: 24px; font-weight: 700; }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  a.back { color: var(--accent); font-size: 14px; text-decoration: none; }
+  a.back:hover { text-decoration: underline; }
+
+  h2 { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 12px; }
+  .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+           padding: 18px 20px 20px; margin-bottom: 20px; }
+
+  label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 5px; }
+  input[type=text], input[type=password] {
+    width: 100%; padding: 9px 11px; font-family: var(--font); font-size: 14.5px;
+    border: 1px solid var(--rule); border-radius: 7px; background: var(--surface); color: var(--ink);
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  @media (max-width: 760px) { .fields { grid-template-columns: 1fr; } }
+
+  button {
+    font-family: var(--font); font-size: 14.5px; font-weight: 500; padding: 10px 18px;
+    border-radius: 7px; border: 1px solid transparent; cursor: pointer;
+    background: var(--accent); color: #fff;
+  }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost { background: transparent; color: var(--ink); border-color: var(--rule); }
+  button.danger { background: transparent; color: var(--danger); border-color: var(--rule); padding: 5px 11px; font-size: 13px; }
+  button.small { background: transparent; color: var(--ink); border-color: var(--rule); padding: 5px 11px; font-size: 13px; }
+  button.small.primary { background: var(--accent); color: #fff; border-color: transparent; }
+  td input[type=text] { padding: 6px 9px; font-size: 13.5px; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .feed { border-radius: 8px; overflow: hidden; background: #11161c; aspect-ratio: 4/3;
+          display: flex; align-items: center; justify-content: center; }
+  .feed img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .feed-note { color: #8a97a4; font-size: 13px; padding: 18px; text-align: center; }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 9px; }
+
+  .status { padding: 11px 14px; border-radius: 8px; font-size: 14px; margin-bottom: 14px; }
+  .status.run { background: var(--warn-bg); color: var(--warn-ink); }
+  .status.done { background: var(--ok-bg); color: var(--ok); }
+  .status.err { background: #fdeceb; color: var(--danger); }
+  .status.hidden { display: none; }
+  .status strong { display: block; font-size: 15.5px; margin-bottom: 2px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12.5px; font-weight: 600; color: var(--muted);
+       padding-bottom: 9px; border-bottom: 1px solid var(--rule); }
+  td { padding: 11px 0; border-bottom: 1px solid var(--rule); font-size: 14.5px; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  td.nm { font-weight: 600; }
+  td.pos { color: var(--muted); }
+  .count { font-size: 13px; }
+  .count.none { color: var(--danger); }
+  .ok-tag { font-size: 12px; padding: 2px 7px; border-radius: 4px;
+            background: var(--ok-bg); color: var(--ok); margin-right: 6px; }
+
+  /* The code gets read aloud or copied onto paper, so it is set large and
+     wide-tracked — a misread character costs the admin a second attempt. */
+  .code { font-family: ui-monospace, "SF Mono", Menlo, monospace;
+          font-size: 34px; font-weight: 600; letter-spacing: 5px;
+          padding: 18px 20px; margin: 12px 0; text-align: center;
+          background: var(--paper); border: 1px solid var(--rule); border-radius: 9px; }
+
+  .outbox { list-style: none; }
+  .outbox li { padding: 11px 0; border-top: 1px solid var(--rule); font-size: 13.5px; }
+  .outbox li:first-child { border-top: none; }
+  .outbox .who { font-weight: 600; }
+  .outbox .when { color: var(--faint); font-size: 12px; margin-left: 6px; }
+  .outbox .msg { white-space: pre-wrap; color: var(--ink); margin-top: 4px; }
+  .outbox .keys { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .outbox .state { font-size: 11.5px; padding: 1px 6px; border-radius: 3px;
+                   background: var(--paper); border: 1px solid var(--rule);
+                   color: var(--muted); margin-left: 6px; }
+  .outbox .state.sent { background: var(--ok-bg); border-color: #cfe6da; color: var(--ok); }
+  .outbox .state.err { background: #fdeceb; border-color: #f6cfcc; color: var(--danger); }
+
+  .fixbar { display: flex; align-items: center; gap: 14px; margin-bottom: 12px;
+            font-size: 13px; color: var(--muted); }
+  .fixbar input[type="date"] { font: inherit; padding: 5px 8px; margin-left: 6px;
+                               border: 1px solid var(--rule); border-radius: 6px; }
+  .addrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+            padding: 12px; margin-bottom: 12px;
+            background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; }
+  .addrow select, .addrow input { font: inherit; padding: 6px 8px;
+                                  border: 1px solid var(--rule); border-radius: 6px; }
+  .addrow select { min-width: 150px; }
+  .addrow input[type="text"] { flex: 1; min-width: 140px; }
+  /* A struck record stays visible so a wrong cancellation can be spotted and
+     undone, rather than disappearing and looking like data loss. */
+  tr.struck td { opacity: .45; text-decoration: line-through; }
+  tr.struck td:last-child { opacity: 1; text-decoration: none; }
+  td.src { font-size: 12px; color: var(--muted); }
+  td.act { text-align: right; }
+
+  .gate { max-width: 380px; margin: 60px auto; }
+  .gate p { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+  .gate .err { color: var(--danger); font-size: 13.5px; margin-top: 10px; min-height: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Xodimlarni boshqarish</h1>
+      <div class="sub">Ro'yxatga qo'shish va yuzini skanerlash</div>
+    </div>
+    <a class="back" href="/">← Davomatga qaytish</a>
+  </header>
+
+  <!-- Management password gate -->
+  <div id="gate" class="gate panel" hidden>
+    <h2>Boshqaruv paroli</h2>
+    <p>Xodim qo'shish va o'chirish uchun alohida parol kerak.</p>
+    <label for="pw">Parol</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <div class="err" id="gateErr"></div>
+    <button id="gateBtn" style="margin-top:12px;width:100%">Kirish</button>
+  </div>
+
+  <!-- Management UI -->
+  <div id="app" hidden>
+    <div class="layout">
+      <section class="panel">
+        <h2>Yangi xodim</h2>
+        <div id="status" class="status hidden"></div>
+        <div class="fields">
+          <div><label for="first">Ism</label><input id="first" type="text" autocomplete="off"></div>
+          <div><label for="last">Familiya</label><input id="last" type="text" autocomplete="off"></div>
+          <div><label for="pos">Lavozim</label><input id="pos" type="text" autocomplete="off"></div>
+        </div>
+        <button id="addBtn">Qo'shish va yuzini skanerlash</button>
+        <p class="hint">Xodim kamera oldiga tursin. Tizim bir necha soniyada 5 ta namuna oladi —
+          shu vaqtda boshini biroz chapga, o'ngga burib tursa, tanish aniqroq bo'ladi.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Kamera</h2>
+        <div class="feed" id="feed"><div class="feed-note">Ulanmoqda…</div></div>
+        <p class="hint" id="camNote">—</p>
+      </section>
+    </div>
+
+    <section class="panel" id="codePanel" hidden>
+      <h2>Telegram bog'lanish kodi</h2>
+      <p class="hint" id="codeWho"></p>
+      <div class="code" id="codeValue"></div>
+      <p class="hint">
+        Shu kodni xodimga bering. U botni ochib <b>/start</b> bosadi va kodni yuboradi.
+        Kod <b>bir marta</b> ishlaydi va <b>24 soat</b> amal qiladi.
+      </p>
+      <button class="small" id="codeClose">Yopish</button>
+    </section>
+
+    <section class="panel">
+      <h2>Ro'yxatdagi xodimlar</h2>
+      <table>
+        <thead><tr><th>Ism familiya</th><th>Lavozim</th><th>Yuz namunalari</th><th>Telegram</th><th></th></tr></thead>
+        <tbody id="rows"><tr><td colspan="5" style="color:var(--muted)">Yuklanmoqda…</td></tr></tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>Davomatni tuzatish</h2>
+      <div class="fixbar">
+        <label>Kun <input type="date" id="fixDay"></label>
+        <button class="small" id="fixAddBtn">Yozuv qo'shish</button>
+      </div>
+
+      <div class="addrow" id="fixAdd" hidden>
+        <select id="fixEmp"></select>
+        <select id="fixEvent">
+          <option value="keldi">kirdi</option>
+          <option value="ketdi">chiqdi</option>
+        </select>
+        <input type="text" id="fixTime" value="09:00" placeholder="09:00"
+               maxlength="5" inputmode="numeric" style="width:76px">
+        <input type="text" id="fixNote" placeholder="izoh (ixtiyoriy)">
+        <button class="small" id="fixSave">Saqlash</button>
+        <button class="small" id="fixCancelAdd">Bekor</button>
+      </div>
+
+      <p class="hint" id="fixStatus"></p>
+      <table>
+        <thead><tr><th>Vaqt</th><th>Xodim</th><th>Hodisa</th><th>Manba</th><th></th></tr></thead>
+        <tbody id="fixRows"><tr><td colspan="5" class="hint">Yuklanmoqda…</td></tr></tbody>
+      </table>
+      <p class="hint">
+        Tuzatilgan yozuv <b>qo'lda</b> deb belgilanadi. Bekor qilingan yozuv
+        o'chirilmaydi — chizib qo'yiladi va qaytarish mumkin.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>Telegram xabarlari</h2>
+      <p class="hint" id="tgState">—</p>
+      <ul class="outbox" id="outbox"><li class="hint">Yuklanmoqda…</li></ul>
+    </section>
+  </div>
+</div>
+
+<script>
+const jsonPost = async (url, body) => {
+  const r = await fetch(url, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || "Xatolik");
+  return data;
+};
+const getJSON = async (url) => {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("Xatolik");
+  return r.json();
+};
+
+/* ── Gate ───────────────────────────────────────────── */
+async function checkSession() {
+  const { signed_in } = await getJSON("/api/admin/session");
+  document.getElementById("gate").hidden = signed_in;
+  document.getElementById("app").hidden = !signed_in;
+  if (signed_in) { startStream(); loadEmployees(); }
+  return signed_in;
+}
+
+document.getElementById("gateBtn").addEventListener("click", signIn);
+document.getElementById("pw").addEventListener("keydown", e => { if (e.key === "Enter") signIn(); });
+
+async function signIn() {
+  const err = document.getElementById("gateErr");
+  err.textContent = "";
+  try {
+    await jsonPost("/api/admin/login", { password: document.getElementById("pw").value });
+    document.getElementById("pw").value = "";
+    checkSession();
+  } catch (e) { err.textContent = e.message; }
+}
+
+/* ── Camera ─────────────────────────────────────────── */
+let streaming = false;
+function startStream() {
+  if (streaming) return;
+  streaming = true;
+  const feed = document.getElementById("feed");
+  feed.innerHTML = `<img id="sImg" alt="Kamera tasviri" src="/api/camera/stream">`;
+  document.getElementById("sImg").addEventListener("error", () => {
+    streaming = false;
+    feed.innerHTML = `<div class="feed-note">Oqim uzildi.</div>`;
+  });
+}
+
+setInterval(async () => {
+  if (document.getElementById("app").hidden) return;
+  try {
+    const s = await getJSON("/api/camera/status");
+    document.getElementById("camNote").textContent = s.online
+      ? (s.unknown_faces ? `${s.unknown_faces} ta notanish yuz ko'rinmoqda` : "Tanish ishlayapti")
+      : "Tanish skripti ishlamayapti — skanerlash ishlamaydi.";
+    if (s.online) startStream();
+  } catch {}
+}, 3000);
+
+/* ── Add + capture ──────────────────────────────────── */
+const statusEl = document.getElementById("status");
+function showStatus(kind, text, headline) {
+  statusEl.className = `status ${kind}`;
+  statusEl.textContent = "";
+  if (headline) {
+    const h = document.createElement("strong");
+    h.textContent = headline;
+    statusEl.appendChild(h);
+  }
+  statusEl.appendChild(document.createTextNode(text));
+}
+
+document.getElementById("addBtn").addEventListener("click", async () => {
+  const first = document.getElementById("first").value.trim();
+  const last = document.getElementById("last").value.trim();
+  const position = document.getElementById("pos").value.trim();
+  if (!first) { showStatus("err", "Ism kiriting."); return; }
+
+  const btn = document.getElementById("addBtn");
+  btn.disabled = true;
+  try {
+    const { id } = await jsonPost("/api/admin/employees",
+      { first_name: first, last_name: last, position });
+    await jsonPost(`/api/admin/employees/${id}/capture`);
+    showStatus("run", "Kameraga qarab turing — namunalar olinmoqda…");
+    const result = await pollCapture(first, last, id);
+    if (result === "duplicate") { loadEmployees(); return; }
+    document.getElementById("first").value = "";
+    document.getElementById("last").value = "";
+    document.getElementById("pos").value = "";
+    loadEmployees();
+  } catch (e) {
+    showStatus("err", e.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function pollCapture(first, last, newEmployeeId) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const timer = setInterval(async () => {
+      let s;
+      try { s = await getJSON("/api/admin/capture"); } catch { return; }
+
+      if (s.state === "running") {
+        const step = s.pose ? ` · burchak ${s.pose}/${s.pose_total}` : "";
+        const note = s.message ? ` · ${s.message}` : "";
+        showStatus("run", `Namuna ${s.saved}/${s.samples || 8}${step}${note}`, s.instruction);
+      } else if (s.state === "done") {
+        clearInterval(timer);
+        showStatus("done", `${first} ${last} ro'yxatga qo'shildi — ${s.saved} ta namuna olindi.`);
+        resolve("done");
+      } else if (s.state === "duplicate") {
+        clearInterval(timer);
+        // The record was created before the face was checked; drop it again so
+        // a rejected enrollment does not leave an empty employee behind.
+        if (newEmployeeId) {
+          await fetch(`/api/admin/employees/${newEmployeeId}`, { method: "DELETE" });
+        }
+        showStatus("err", s.message || "Bu yuz allaqachon ro'yxatda.");
+        resolve("duplicate");
+      } else if (s.state === "timeout") {
+        clearInterval(timer);
+        showStatus("err", `Yuz yetarlicha ko'rinmadi (${s.saved} ta namuna). Xodim qo'shildi — ro'yxatdan qayta skanerlang.`);
+        resolve("timeout");
+      }
+      if (Date.now() - started > 105000) { clearInterval(timer); resolve("timeout"); }
+    }, 700);
+  });
+}
+
+/* ── Employee list ──────────────────────────────────── */
+let employees = [];
+let editingId = null;
+
+async function loadEmployees() {
+  employees = await getJSON("/api/employees");
+  renderTable();
+}
+
+const esc = (s) => (s || "").replace(/"/g, "&quot;");
+
+function viewRow(p) {
+  return `<tr>
+    <td class="nm">${p.name}</td>
+    <td class="pos">${p.position || "—"}</td>
+    <td class="count ${p.face_samples ? "" : "none"}">
+      ${p.face_samples ? p.face_samples + " ta" : "yuzi kiritilmagan"}
+    </td>
+    <td class="tg">
+      ${p.telegram_linked
+        ? `<span class="ok-tag">ulangan${p.username ? " · @" + p.username : ""}</span>
+           <button class="small" data-tgoff="${p.id}" data-name="${p.name}">Uzish</button>`
+        : `<button class="small" data-tgcode="${p.id}" data-name="${p.name}">Kod olish</button>`}
+    </td>
+    <td class="act">
+      <button class="small" data-edit="${p.id}">Tahrirlash</button>
+      <button class="small" data-rescan="${p.id}">Qayta skanerlash</button>
+      <button class="danger" data-del="${p.id}" data-name="${p.name}">O'chirish</button>
+    </td>
+  </tr>`;
+}
+
+function editRow(p) {
+  return `<tr>
+    <td>
+      <input type="text" id="ef-${p.id}" value="${esc(p.first_name)}" placeholder="Ism"
+             style="margin-bottom:6px" aria-label="Ism">
+      <input type="text" id="el-${p.id}" value="${esc(p.last_name)}" placeholder="Familiya"
+             aria-label="Familiya">
+    </td>
+    <td><input type="text" id="ep-${p.id}" value="${esc(p.position)}" placeholder="Lavozim"
+               aria-label="Lavozim"></td>
+    <td class="count">${p.face_samples ? p.face_samples + " ta" : "—"}</td>
+    <td class="act">
+      <button class="small primary" data-save="${p.id}">Saqlash</button>
+      <button class="small" data-cancel="1">Bekor</button>
+    </td>
+  </tr>`;
+}
+
+function renderTable() {
+  const rows = document.getElementById("rows");
+  if (!employees.length) {
+    rows.innerHTML = `<tr><td colspan="5" style="color:var(--muted)">Hali hech kim qo'shilmagan</td></tr>`;
+    return;
+  }
+  rows.innerHTML = employees.map(p => (p.id === editingId ? editRow(p) : viewRow(p))).join("");
+
+  rows.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => {
+    editingId = Number(b.dataset.edit);
+    renderTable();
+    document.getElementById(`ef-${editingId}`)?.focus();
+  }));
+
+  rows.querySelectorAll("[data-cancel]").forEach(b => b.addEventListener("click", () => {
+    editingId = null;
+    renderTable();
+  }));
+
+  rows.querySelectorAll("[data-save]").forEach(b => b.addEventListener("click", async () => {
+    const id = Number(b.dataset.save);
+    const body = {
+      first_name: document.getElementById(`ef-${id}`).value.trim(),
+      last_name: document.getElementById(`el-${id}`).value.trim(),
+      position: document.getElementById(`ep-${id}`).value.trim(),
+    };
+    try {
+      const r = await fetch(`/api/admin/employees/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.detail || "Saqlanmadi");
+      editingId = null;
+      showStatus("done", "O'zgarishlar saqlandi.");
+      loadEmployees();
+    } catch (e) { showStatus("err", e.message); }
+  }));
+
+  rows.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
+    if (!confirm(`${b.dataset.name} ro'yxatdan o'chirilsinmi? Yuz ma'lumotlari ham o'chadi.`)) return;
+    await fetch(`/api/admin/employees/${b.dataset.del}`, { method: "DELETE" });
+    loadEmployees();
+  }));
+
+  rows.querySelectorAll("[data-tgcode]").forEach(b => b.addEventListener("click", async () => {
+    const r = await jsonPost(`/api/admin/employees/${b.dataset.tgcode}/pairing-code`, {});
+    showCode(b.dataset.name, r.display);
+  }));
+
+  rows.querySelectorAll("[data-tgoff]").forEach(b => b.addEventListener("click", async () => {
+    if (!confirm(`${b.dataset.name} — Telegram ulanishini uzamizmi?`)) return;
+    await fetch(`/api/admin/employees/${b.dataset.tgoff}/telegram`, { method: "DELETE" });
+    loadEmployees();
+  }));
+
+  rows.querySelectorAll("[data-rescan]").forEach(b => b.addEventListener("click", async () => {
+    await jsonPost(`/api/admin/employees/${b.dataset.rescan}/capture`);
+    showStatus("run", "Kameraga qarab turing — namunalar olinmoqda…");
+    await pollCapture("Xodim", "");
+    loadEmployees();
+  }));
+}
+
+/* ── Telegram ────────────────────────────────────────── */
+function showCode(name, code) {
+  document.getElementById("codeWho").textContent = `${name} uchun:`;
+  document.getElementById("codeValue").textContent = code;
+  document.getElementById("codePanel").hidden = false;
+  document.getElementById("codePanel").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+document.getElementById("codeClose").addEventListener("click", () => {
+  document.getElementById("codePanel").hidden = true;
+});
+
+const OUTBOX_KINDS = {
+  keldi: "kirdi", ketdi: "chiqdi", ketdi_savol: "erta chiqish — savol",
+  auto_close: "o'zi yopildi", allaqachon: "takroriy",
+};
+
+async function loadOutbox() {
+  let data;
+  try { data = await getJSON("/api/admin/outbox?limit=25"); } catch { return; }
+
+  document.getElementById("tgState").textContent = !data.enabled
+    ? "Bot o'chirilgan. Xabarlar tayyorlanadi va shu yerda ko'rinadi, lekin yuborilmaydi."
+    : (data.sending
+        ? "Bot ishlayapti, xabarlar yuborilayapti."
+        : "Bot ishlayapti, lekin xabar yuborish o'chirilgan — faqat shu yerda ko'rinadi.");
+
+  const el = document.getElementById("outbox");
+  if (!data.messages.length) {
+    el.innerHTML = `<li class="hint">Hali xabar yo'q</li>`;
+    return;
+  }
+  el.innerHTML = data.messages.map(m => {
+    const state = m.error
+      ? `<span class="state err">xato</span>`
+      : (m.sent_at ? `<span class="state sent">yuborildi</span>`
+                   : `<span class="state">navbatda</span>`);
+    const keys = (m.buttons || []).flat().map(b => b.text).join("  ·  ");
+    return `<li>
+      <span class="who">${m.name || "—"}</span>
+      <span class="state">${OUTBOX_KINDS[m.kind] || m.kind}</span>${state}
+      <span class="when">${m.created_at}</span>
+      <div class="msg">${m.body}</div>
+      ${keys ? `<div class="keys">tugmalar: ${keys}</div>` : ""}
+    </li>`;
+  }).join("");
+}
+
+/* ── Davomatni tuzatish ─────────────────────────────── */
+const EVENT_LABEL = { keldi: "kirdi", ketdi: "chiqdi" };
+const SOURCE_LABEL = {
+  deliberate: "kelib turdi", first_sighting: "turmadi",
+  auto_close: "o'zi yopildi", manual: "qo'lda",
+};
+
+function today() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+const fixDay = document.getElementById("fixDay");
+const fixStatus = document.getElementById("fixStatus");
+fixDay.value = today();
+fixDay.addEventListener("change", loadFix);
+
+async function loadFix() {
+  let rows;
+  try {
+    rows = await getJSON(`/api/attendance?day=${fixDay.value}&cancelled=true`);
+  } catch { return; }
+
+  const body = document.getElementById("fixRows");
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="5" class="hint">Bu kunda yozuv yo'q</td></tr>`;
+    return;
+  }
+  body.innerHTML = rows.map(r => `
+    <tr class="${r.cancelled ? "struck" : ""}">
+      <td>${r.ts.slice(11, 16)}</td>
+      <td class="nm">${r.name}</td>
+      <td>${EVENT_LABEL[r.event] || r.event}${r.reason ? ` · ${r.reason}` : ""}</td>
+      <td class="src">${SOURCE_LABEL[r.source] || r.source}</td>
+      <td class="act">
+        ${r.cancelled
+          ? `<button class="small" data-restore="${r.id}">Qaytarish</button>`
+          : `<button class="small" data-fixtime="${r.id}" data-ts="${r.ts}">Vaqtini tuzatish</button>
+             <button class="danger" data-strike="${r.id}">Bekor qilish</button>`}
+      </td>
+    </tr>`).join("");
+
+  body.querySelectorAll("[data-fixtime]").forEach(b => b.addEventListener("click", async () => {
+    const current = b.dataset.ts.slice(11, 16);
+    const next = prompt(`Yangi vaqt (SS:DD), hozirgisi ${current}:`, current);
+    if (!next || !/^\d{2}:\d{2}$/.test(next)) return;
+    await send(`/api/admin/events/${b.dataset.fixtime}`, "PATCH",
+               { ts: `${fixDay.value}T${next}`, note: "vaqt qo'lda tuzatildi" });
+    fixStatus.textContent = `Vaqt ${next} ga o'zgartirildi.`;
+    loadFix();
+  }));
+
+  body.querySelectorAll("[data-strike]").forEach(b => b.addEventListener("click", async () => {
+    if (!confirm("Bu yozuv bekor qilinsinmi? Keyin qaytarish mumkin.")) return;
+    await send(`/api/admin/events/${b.dataset.strike}`, "DELETE");
+    fixStatus.textContent = "Yozuv bekor qilindi — qaytarish mumkin.";
+    loadFix();
+  }));
+
+  body.querySelectorAll("[data-restore]").forEach(b => b.addEventListener("click", async () => {
+    await send(`/api/admin/events/${b.dataset.restore}/restore`, "POST");
+    fixStatus.textContent = "Yozuv qaytarildi.";
+    loadFix();
+  }));
+}
+
+async function send(url, method, payload) {
+  const r = await fetch(url, {
+    method,
+    headers: payload ? { "Content-Type": "application/json" } : undefined,
+    body: payload ? JSON.stringify(payload) : undefined,
+  });
+  if (!r.ok) {
+    fixStatus.textContent = (await r.json().catch(() => ({}))).detail || "Xatolik";
+    throw new Error("failed");
+  }
+  return r.json();
+}
+
+async function fillEmployeeSelect() {
+  const select = document.getElementById("fixEmp");
+  try {
+    const people = await getJSON("/api/employees");
+    select.innerHTML = people.length
+      ? people.map(p => `<option value="${p.id}">${p.name}</option>`).join("")
+      : `<option value="">xodim yo'q</option>`;
+  } catch {
+    select.innerHTML = `<option value="">ro'yxat yuklanmadi</option>`;
+    fixStatus.textContent = "Xodimlar ro'yxatini yuklab bo'lmadi.";
+  }
+}
+
+document.getElementById("fixAddBtn").addEventListener("click", () => {
+  const box = document.getElementById("fixAdd");
+  box.hidden = !box.hidden;
+  if (!box.hidden) fillEmployeeSelect();   // refresh, in case someone was added
+});
+
+document.getElementById("fixCancelAdd").addEventListener("click", () => {
+  document.getElementById("fixAdd").hidden = true;
+});
+
+document.getElementById("fixSave").addEventListener("click", async () => {
+  const time = document.getElementById("fixTime").value.trim();
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+    fixStatus.textContent = "Vaqtni SS:DD ko'rinishida kiriting, masalan 09:00.";
+    return;
+  }
+  const employee = document.getElementById("fixEmp").value;
+  if (!employee) { fixStatus.textContent = "Xodim tanlanmadi."; return; }
+  try {
+    await send("/api/admin/events", "POST", {
+      employee_id: Number(employee),
+      ts: `${fixDay.value}T${time}`,
+      event: document.getElementById("fixEvent").value,
+      note: document.getElementById("fixNote").value,
+    });
+    document.getElementById("fixAdd").hidden = true;
+    document.getElementById("fixNote").value = "";
+    fixStatus.textContent = "Yozuv qo'shildi.";
+    loadFix();
+  } catch {}
+});
+
+checkSession().then(() => { loadOutbox(); loadFix(); fillEmployeeSelect(); })
+  .catch(() => {});
+setInterval(() => loadOutbox().catch(() => {}), 8000);
+</script>
+</body>
+</html>

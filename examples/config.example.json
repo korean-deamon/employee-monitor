@@ -1,0 +1,38 @@
+{
+  "timezone": "Asia/Tashkent",
+  "work_start": "09:00",
+  "work_end": "18:00",
+  "stand_min_face_ratio": 0.18,
+  "stand_min_face_px": 100,
+  "stand_seconds": 3.0,
+  "stand_max_drift_ratio": 0.15,
+  "stand_vote_ratio": 0.6,
+  "stand_gap_seconds": 1.5,
+  "stand_cooldown_seconds": 60,
+  "min_session_seconds": 600,
+  "absence_close_seconds": 1800,
+  "first_sighting_arrival": true,
+  "body_mode": "box",
+  "body_fps": 8,
+  "body_min_confidence": 0.4,
+  "counter_enabled": false,
+  "door_line": [
+    [
+      0.0,
+      0.65
+    ],
+    [
+      1.0,
+      0.65
+    ]
+  ],
+  "door_invert": false,
+  "track_max_distance_ratio": 0.25,
+  "track_max_missed": 6,
+  "count_cooldown_seconds": 2.0,
+  "count_point": "foot",
+  "telegram_enabled": false,
+  "telegram_send_notifications": false,
+  "pairing_code_hours": 24,
+  "pairing_attempts_per_hour": 5
+}
