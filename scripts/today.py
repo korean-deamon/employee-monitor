@@ -19,8 +19,8 @@ from db import FULL_NAME_SQL, get_conn
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--clear", action="store_true", help="bugungi davomat yozuvlarini o'chirish")
-    ap.add_argument("--day", help="YYYY-MM-DD (default: bugun)")
+    ap.add_argument("--clear", action="store_true", help="удалить сегодняшние записи")
+    ap.add_argument("--day", help="YYYY-MM-DD (по умолчанию: сегодня)")
     args = ap.parse_args()
 
     cfg = cfgmod.load()
@@ -36,7 +36,7 @@ def main():
         (day,),
     ).fetchall()
 
-    print(f"\n{day} — {len(rows)} ta yozuv\n")
+    print(f"\n{day} — записей: {len(rows)}\n")
     for row in rows:
         local = cfgmod.to_local(cfg, cfgmod.parse_ts(row["ts"]))
         extra = row["reason"] or row["note"] or ""
@@ -47,7 +47,7 @@ def main():
     if args.clear and rows:
         con.execute("DELETE FROM attendance_events WHERE local_day = ?", (day,))
         con.commit()
-        print(f"{len(rows)} ta yozuv o'chirildi. Yuz namunalari va xodimlar saqlandi.\n")
+        print(f"Удалено записей: {len(rows)}. Образцы лиц и сотрудники сохранены.\n")
     con.close()
 
 

@@ -149,7 +149,7 @@ class Counter:
             cv2.circle(frame, point, 7, COLOR_LINE, 2)
             cv2.circle(frame, point, 2, COLOR_LINE, -1)
 
-        label = f"kirdi {totals.get('kirdi', 0)}   chiqdi {totals.get('chiqdi', 0)}"
+        label = f"voshli {totals.get('kirdi', 0)}   vyshli {totals.get('chiqdi', 0)}"
         cv2.rectangle(frame, (8, 8), (8 + 11 * len(label), 38), (20, 20, 20), -1)
         cv2.putText(frame, label, (14, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
                     (255, 255, 255), 1, cv2.LINE_AA)

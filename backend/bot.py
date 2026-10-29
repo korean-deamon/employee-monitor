@@ -91,23 +91,23 @@ def send(token, chat_id, text, buttons=None):
 
 # ── Incoming ──────────────────────────────────────────────────────────────────
 
-HELP = ("Buyruqlar:\n"
-        "/bugun — bugungi yozuvingiz\n"
-        "/hafta — shu haftaning hisobi\n"
-        "/kechikish — kechikishlar tarixi\n"
-        "/help — shu ro'yxat")
+HELP = ("Команды:\n"
+        "/bugun — ваша запись за сегодня\n"
+        "/hafta — итоги этой недели\n"
+        "/kechikish — история опозданий\n"
+        "/help — этот список")
 
-PAIR_PROMPT = ("Salom! Davomat tizimiga ulanish uchun\n"
-               "admin bergan kodni yuboring.\n\n"
-               "Masalan: K7M4-RPQX")
+PAIR_PROMPT = ("Здравствуйте! Чтобы подключиться к системе учёта,\n"
+               "отправьте код, который выдал администратор.\n\n"
+               "Например: K7M4-RPQX")
 
 REDEEM_ERRORS = {
-    "rate_limited": "Juda ko'p urinish. Bir soatdan keyin qayta urinib ko'ring.",
-    "malformed": "Kod 8 belgidan iborat bo'ladi. Masalan: K7M4-RPQX",
-    "unknown": "Bunday kod yo'q. Admindan qaytadan so'rang.",
-    "used": "Bu kod allaqachon ishlatilgan. Admindan yangisini so'rang.",
-    "expired": "Kodning muddati o'tgan. Admindan yangisini so'rang.",
-    "account_taken": "Bu Telegram akkaunt boshqa xodimga ulangan.",
+    "rate_limited": "Слишком много попыток. Повторите через час.",
+    "malformed": "Код состоит из 8 символов. Например: K7M4-RPQX",
+    "unknown": "Такого кода нет. Запросите новый у администратора.",
+    "used": "Этот код уже использован. Запросите новый у администратора.",
+    "expired": "Срок действия кода истёк. Запросите новый у администратора.",
+    "account_taken": "Этот аккаунт Telegram привязан к другому сотруднику.",
 }
 
 
@@ -131,17 +131,17 @@ def handle_message(token, con, cfg, message):
                            from_user.get("username", ""))
         if result["ok"]:
             send(token, chat_id,
-                 f"✅ Ulandingiz.\nSiz: {result['name']}\n\n{HELP}")
-            print(f"[bot] ulandi: {result['name']}")
+                 f"✅ Вы подключены.\nВы: {result['name']}\n\n{HELP}")
+            print(f"[bot] подключился: {result['name']}")
         else:
-            send(token, chat_id, REDEEM_ERRORS.get(result["reason"], "Kod to'g'ri kelmadi."))
+            send(token, chat_id, REDEEM_ERRORS.get(result["reason"], "Код не подошёл."))
         return
 
     employee_id = link["employee_id"]
     command = text.split()[0].lower() if text else ""
     if command in ("/start", "/help"):
         send(token, chat_id,
-             f"Siz: {tg.employee_name(con, employee_id)}\n\n{HELP}")
+             f"Вы: {tg.employee_name(con, employee_id)}\n\n{HELP}")
     elif command == "/bugun":
         send(token, chat_id,
              tg.day_report(cfg, con, employee_id,
@@ -168,7 +168,7 @@ def handle_callback(token, con, cfg, callback):
         call(token, "answerCallbackQuery", callback_query_id=callback["id"], text=text)
 
     if not link or not chat_id:
-        answer("Siz ulanmagansiz.")
+        answer("Вы не подключены.")
         return
 
     employee_id = link["employee_id"]
@@ -187,27 +187,27 @@ def handle_callback(token, con, cfg, callback):
             answer()
         elif choice == "yoq":
             if attendance.cancel_event(con, event_id, employee_id):
-                send(token, chat_id, "↩️ Bekor qilindi. Siz ishxonada deb qoldingiz.")
-                print(f"[bot] bekor: {tg.employee_name(con, employee_id)} #{event_id}")
+                send(token, chat_id, "↩️ Отменено. Вы считаетесь на работе.")
+                print(f"[bot] отмена: {tg.employee_name(con, employee_id)} #{event_id}")
             answer()
         else:
             attendance.confirm_event(con, event_id, employee_id, "ha")
-            send(token, chat_id, "✅ Yozildi. Yaxshi dam oling!")
+            send(token, chat_id, "✅ Записано. Хорошего отдыха!")
             answer()
 
     elif kind == "reason":
         label = tg.REASON_LABELS.get(choice, choice)
         if attendance.confirm_event(con, event_id, employee_id, "sabab", reason=choice):
-            send(token, chat_id, f"✅ Yozildi · {label}")
-            print(f"[bot] sabab: {tg.employee_name(con, employee_id)} — {label}")
+            send(token, chat_id, f"✅ Записано · {label}")
+            print(f"[bot] причина: {tg.employee_name(con, employee_id)} — {label}")
         answer()
 
     elif kind == "close":
         if choice == "ok":
             attendance.confirm_event(con, event_id, employee_id, "ha")
-            send(token, chat_id, "✅ Tasdiqlandi.")
+            send(token, chat_id, "✅ Подтверждено.")
         else:
-            send(token, chat_id, "Adminga murojaat qiling — u vaqtni to'g'irlaydi.")
+            send(token, chat_id, "Обратитесь к администратору — он исправит время.")
         answer()
     else:
         answer()
@@ -243,25 +243,25 @@ def main():
 
     cfg = cfgmod.load()
     if not cfg["telegram_enabled"]:
-        print("Telegram o'chirilgan. Yoqish uchun data/config.json da:")
+        print("Telegram выключен. Чтобы включить, в data/config.json:")
         print('  "telegram_enabled": true')
-        print("Xabar yuborish esa alohida kalit:")
+        print("Отправка сообщений — отдельный переключатель:")
         print('  "telegram_send_notifications": true')
         return
 
     token = read_token()
     if not token:
-        print("ERROR: .env ichida TELEGRAM_BOT_TOKEN yo'q")
+        print("ОШИБКА: в .env нет TELEGRAM_BOT_TOKEN")
         return
 
     init_db()
     me = call(token, "getMe")
     if not me:
-        print("ERROR: Telegram javob bermadi — token yoki internetni tekshiring")
+        print("ОШИБКА: Telegram не ответил — проверьте токен или интернет")
         return
-    print(f"Bot ulandi: @{me.get('username')}")
-    print(f"Xabar yuborish: {'YOQILGAN' if cfg['telegram_send_notifications'] else 'o@chirilgan'}"
-          .replace("@", "'"))
+    print(f"Бот подключён: @{me.get('username')}")
+    print(f"Отправка сообщений: "
+          f"{'ВКЛЮЧЕНА' if cfg['telegram_send_notifications'] else 'выключена'}")
 
     offset = None
     last_outbox = 0.0
@@ -282,13 +282,13 @@ def main():
                 last_outbox = time.time()
                 count = drain_outbox(token, con, cfg)
                 if count:
-                    print(f"[bot] {count} ta xabar yuborildi")
+                    print(f"[bot] отправлено сообщений: {count}")
         except Exception as e:
-            print("[bot] xatolik, davom etamiz:", e)
+            print("[bot] ошибка, продолжаем:", e)
         finally:
             con.close()
 
-    print("Bot to'xtatildi")
+    print("Бот остановлен")
 
 
 if __name__ == "__main__":

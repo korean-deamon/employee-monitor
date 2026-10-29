@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Davomat</title>
+<title>Посещаемость</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -132,7 +132,7 @@
 
   <header>
     <div>
-      <h1>Davomat</h1>
+      <h1>Посещаемость</h1>
       <div class="sub" id="dateLine"></div>
     </div>
     <div class="headline-now">
@@ -142,13 +142,13 @@
   </header>
 
   <section>
-    <h2>Bugungi kun</h2>
-    <div class="board" id="board"><div class="empty">Yuklanmoqda…</div></div>
+    <h2>Сегодня</h2>
+    <div class="board" id="board"><div class="empty">Загрузка…</div></div>
   </section>
 
   <div class="cols">
     <section class="panel">
-      <h2>Kamera</h2>
+      <h2>Камера</h2>
       <div class="feed" id="feed"><div class="feed-note">Ulanmoqda…</div></div>
       <div class="feed-meta">
         <span id="camState">—</span>
@@ -159,19 +159,19 @@
     </section>
 
     <section class="panel">
-      <h2>Kirish va chiqish</h2>
-      <ul class="events" id="events"><li>Yuklanmoqda…</li></ul>
+      <h2>Входы и выходы</h2>
+      <ul class="events" id="events"><li>Загрузка…</li></ul>
     </section>
   </div>
 
   <section>
-    <h2>Kechikishlar</h2>
-    <div class="board" id="late"><div class="empty">Yuklanmoqda…</div></div>
+    <h2>Опоздания</h2>
+    <div class="board" id="late"><div class="empty">Загрузка…</div></div>
   </section>
 
   <section>
-    <h2>Kun hisobi</h2>
-    <div class="board" id="summary"><div class="empty">Yuklanmoqda…</div></div>
+    <h2>Итоги дня</h2>
+    <div class="board" id="summary"><div class="empty">Загрузка…</div></div>
   </section>
 
   <p class="roster-strip" id="rosterStrip"></p>
@@ -180,7 +180,7 @@
 <script>
 const api = async (p) => {
   const r = await fetch(p);
-  if (r.status === 401) { document.body.innerHTML = "<p style='padding:40px'>Kirish uchun sahifani qayta yuklang.</p>"; throw new Error("401"); }
+  if (r.status === 401) { document.body.innerHTML = "<p style='padding:40px'>Перезагрузите страницу для входа.</p>"; throw new Error("401"); }
   return r.json();
 };
 const pad = n => String(n).padStart(2, "0");
@@ -188,8 +188,8 @@ const hhmm = iso => { const d = new Date(iso); return `${pad(d.getHours())}:${pa
 
 function humanDuration(sec) {
   const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60);
-  if (h && m) return `${h} soat ${m} daq`;
-  if (h) return `${h} soat`;
+  if (h && m) return `${h} ч ${m} мин`;
+  if (h) return `${h} ч`;
   return `${m} daq`;
 }
 
@@ -204,8 +204,8 @@ function tickClock() {
 function renderBoard(people, presentIds) {
   const el = document.getElementById("board");
   if (!people.length) {
-    el.innerHTML = `<div class="empty"><strong>Bugun hali hech kim qayd etilmadi</strong>
-      Kamera ro'yxatdagi odamni ko'rsa, shu yerda chiziq paydo bo'ladi.</div>`;
+    el.innerHTML = `<div class="empty"><strong>Сегодня ещё никто не отмечен</strong>
+      Когда камера увидит человека из списка, здесь появится полоса.</div>`;
     return;
   }
 
@@ -246,29 +246,29 @@ function renderBoard(people, presentIds) {
 
   el.innerHTML = `<div class="axis">${axis}</div>${rows}
     <div class="legend">
-      <span><i style="background:var(--band-live)"></i>hozir ofisda</span>
-      <span><i style="background:var(--band)"></i>bugun bo'lgan</span>
-      <span><i style="background:var(--now);width:2px;height:12px"></i>hozirgi vaqt</span>
+      <span><i style="background:var(--band-live)"></i>сейчас в офисе</span>
+      <span><i style="background:var(--band)"></i>были сегодня</span>
+      <span><i style="background:var(--now);width:2px;height:12px"></i>текущее время</span>
     </div>`;
 }
 
 // Display wording only. The database stores keldi/ketdi as the stable event
 // names; what the page calls them is a label, so trying other wording costs one
 // line here and never a migration.
-const EVENT_LABEL = { keldi: "kirdi", ketdi: "chiqdi" };
+const EVENT_LABEL = { keldi: "вошёл", ketdi: "вышел" };
 const label = (e) => EVENT_LABEL[e] || e;
 
 // How a record came to exist decides how much it can be relied on, so the
 // weaker two sources say so on the face of the row rather than in a tooltip.
 const SOURCE_NOTE = {
-  first_sighting: "turmadi",
-  auto_close: "o'zi yopildi",
-  manual: "qo'lda",
+  first_sighting: "не останавливался",
+  auto_close: "закрыто системой",
+  manual: "вручную",
 };
 
 function renderEvents(list) {
   const el = document.getElementById("events");
-  if (!list.length) { el.innerHTML = `<li style="color:var(--muted)">Bugun hodisa yo'q</li>`; return; }
+  if (!list.length) { el.innerHTML = `<li style="color:var(--muted)">Сегодня событий нет</li>`; return; }
   el.innerHTML = list.map(e => {
     const note = SOURCE_NOTE[e.source];
     const needsReason = e.grade.needs_reason && !e.reason;
@@ -279,7 +279,7 @@ function renderEvents(list) {
       <span class="grade">${e.grade.text}</span>
       ${note ? `<span class="tag">${note}</span>` : ""}
       ${e.reason ? `<span class="tag">${e.reason}</span>` : ""}
-      ${needsReason ? `<span class="tag flag">sabab yo'q</span>` : ""}
+      ${needsReason ? `<span class="tag flag">без причины</span>` : ""}
     </li>`;
   }).join("");
 }
@@ -287,19 +287,19 @@ function renderEvents(list) {
 function renderSummary(data) {
   const el = document.getElementById("summary");
   if (!data.employees.length) {
-    el.innerHTML = `<div class="empty">Bugun hali yozuv yo'q</div>`;
+    el.innerHTML = `<div class="empty">Сегодня записей ещё нет</div>`;
     return;
   }
   el.innerHTML = `<table class="sum">
-    <tr><th>Xodim</th><th>Kirdi</th><th>Chiqdi</th><th>Tanaffus</th><th>Ishlagan</th></tr>
+    <tr><th>Сотрудник</th><th>Вошёл</th><th>Вышел</th><th>Перерыв</th><th>Отработал</th></tr>
     ${data.employees.map(p => `
       <tr>
         <td class="nm">${p.name}${p.unexplained_early_leave
-            ? ` <span class="tag flag">sabab yo'q</span>` : ""}</td>
+            ? ` <span class="tag flag">без причины</span>` : ""}</td>
         <td>${p.arrived ? hhmm(p.arrived) : "—"}
             ${p.arrival_grade && p.arrival_grade.late_minutes
               ? `<span class="late-cell">${p.arrival_grade.text}</span>` : ""}</td>
-        <td>${p.left ? hhmm(p.left) : (p.still_in ? "<em>ofisda</em>" : "—")}</td>
+        <td>${p.left ? hhmm(p.left) : (p.still_in ? "<em>в офисе</em>" : "—")}</td>
         <td>${p.breaks.length
               ? p.breaks.reduce((n, b) => n + b.seconds, 0) / 60 | 0 : 0}′</td>
         <td>${dur(p.worked_seconds)}</td>
@@ -311,8 +311,8 @@ function renderLate(data) {
   const el = document.getElementById("late");
   if (!data.arrivals.length) {
     el.innerHTML = `<div class="empty">
-      <strong>Kechikish yo'q</strong>
-      Oxirgi 30 kunda hamma ${data.work_start} gacha kelgan.</div>`;
+      <strong>Опозданий нет</strong>
+      За последние 30 дней все приходили до ${data.work_start}.</div>`;
     return;
   }
 
@@ -320,17 +320,17 @@ function renderLate(data) {
                                           && a.local_day === todayKey());
   el.innerHTML = `
     ${today.length ? `<div class="late-today">
-      <div class="late-head">Bugun kech qolganlar</div>
+      <div class="late-head">Опоздавшие сегодня</div>
       ${today.map(a => `<div class="late-row">
         <span class="nm">${a.name}</span>
-        <span class="late-big">${a.late_text} kech</span>
-        <span class="late-at">kirdi ${a.time}</span>
+        <span class="late-big">опоздание ${a.late_text}</span>
+        <span class="late-at">вошёл в ${a.time}</span>
       </div>`).join("")}
-    </div>` : `<p class="late-none">Bugun hech kim kech qolmadi.</p>`}
+    </div>` : `<p class="late-none">Сегодня никто не опоздал.</p>`}
 
     <table class="sum late-sum">
-      <tr><th>Xodim</th><th>Kechikkan kun</th><th>Jami</th>
-          <th>O'rtacha</th><th>Eng ko'p</th></tr>
+      <tr><th>Сотрудник</th><th>Дней с опозданием</th><th>Всего</th>
+          <th>В среднем</th><th>Максимум</th></tr>
       ${data.by_employee.map(p => `<tr>
         <td class="nm">${p.name}</td>
         <td>${p.days} kun</td>
@@ -341,13 +341,13 @@ function renderLate(data) {
     </table>
 
     <details class="late-all">
-      <summary>Har bir kechikish (${data.arrivals.length} ta)</summary>
+      <summary>Каждое опоздание (${data.arrivals.length})</summary>
       <table class="sum">
         ${data.arrivals.map(a => `<tr>
           <td>${a.local_day}</td>
           <td class="nm">${a.name}</td>
-          <td>kirdi ${a.time}</td>
-          <td class="late-cell">${a.late_text} kech</td>
+          <td>вошёл в ${a.time}</td>
+          <td class="late-cell">опоздание ${a.late_text}</td>
         </tr>`).join("")}
       </table>
     </details>`;
@@ -361,17 +361,17 @@ function todayKey() {
 function dur(seconds) {
   if (!seconds) return "—";
   const h = Math.floor(seconds / 3600), m = Math.round((seconds % 3600) / 60);
-  return h ? `${h} soat ${m} daq` : `${m} daqiqa`;
+  return h ? `${h} ч ${m} мин` : `${m} мин`;
 }
 
 function renderRoster(people) {
   const el = document.getElementById("rosterStrip");
   if (!people.length) {
-    el.innerHTML = `Ro'yxat bo'sh. Xodim qo'shish: <b>python backend/enroll.py --name "Ism" --capture 5</b>`;
+    el.innerHTML = `Список пуст. Добавить сотрудника: <b>python backend/enroll.py --name "Имя" --capture 5</b>`;
     return;
   }
-  el.innerHTML = "Ro'yxatdagilar: " + people.map(p =>
-    p.face_samples ? `<b>${p.name}</b>` : `<b>${p.name}</b> <span class="warn">(yuzi kiritilmagan)</span>`
+  el.innerHTML = "В списке: " + people.map(p =>
+    p.face_samples ? `<b>${p.name}</b>` : `<b>${p.name}</b> <span class="warn">(лицо не внесено)</span>`
   ).join(", ");
 }
 
@@ -380,10 +380,10 @@ function startStream() {
   if (streaming) return;
   streaming = true;
   const feed = document.getElementById("feed");
-  feed.innerHTML = `<img id="streamImg" alt="Kamera tasviri" src="/api/camera/stream">`;
+  feed.innerHTML = `<img id="streamImg" alt="Изображение камеры" src="/api/camera/stream">`;
   document.getElementById("streamImg").addEventListener("error", () => {
     streaming = false;
-    feed.innerHTML = `<div class="feed-note">Oqim uzildi, qayta ulanmoqda…</div>`;
+    feed.innerHTML = `<div class="feed-note">Поток прерван, переподключение…</div>`;
   });
 }
 
@@ -391,9 +391,9 @@ let presentIds = new Set();
 async function refreshLive() {
   const s = await api("/api/camera/status");
   const online = !!s.online;
-  document.getElementById("camState").textContent = online ? "Tanish ishlayapti" : "Kamera ishlamayapti";
+  document.getElementById("camState").textContent = online ? "Распознавание работает" : "Камера не работает";
   document.getElementById("unknownFaces").textContent =
-    online && s.unknown_faces ? `${s.unknown_faces} ta notanish yuz` : "";
+    online && s.unknown_faces ? `неизвестных лиц: ${s.unknown_faces}` : "";
 
   document.getElementById("standBar").style.width =
     `${Math.round((online ? s.stand_progress || 0 : 0) * 100)}%`;
@@ -401,7 +401,7 @@ async function refreshLive() {
   const last = online ? s.last_event : null;
   document.getElementById("lastEvent").innerHTML = !last ? "" : (
     last.status === "already"
-      ? `<span class="nm">${last.name}</span> <span class="tag">allaqachon yozilgan · ${hhmm(last.ts)}</span>`
+      ? `<span class="nm">${last.name}</span> <span class="tag">уже записано · ${hhmm(last.ts)}</span>`
       : `<span class="nm">${last.name}</span>
          <span class="pill ${last.event === "keldi" ? "in" : "out"}">${label(last.event)}</span>
          <span class="grade">${hhmm(last.ts)} · ${last.grade.text}</span>`);
@@ -409,14 +409,14 @@ async function refreshLive() {
   const present = online ? (s.present || []) : [];
   presentIds = new Set(present.map(p => p.employee_id));
   document.getElementById("insideNow").textContent = present.length
-    ? `${present.length} kishi ofisda: ` + present.map(p => p.name).join(", ")
-    : "Hozir hech kim yo'q";
+    ? `в офисе ${present.length}: ` + present.map(p => p.name).join(", ")
+    : "Сейчас никого нет";
 
   if (online) startStream();
   else {
     streaming = false;
     document.getElementById("feed").innerHTML =
-      `<div class="feed-note">Tanish skripti ishga tushirilmagan.<br>backend/recognizer.py ni ishga tushiring.</div>`;
+      `<div class="feed-note">Скрипт распознавания не запущен.<br>Запустите backend/recognizer.py.</div>`;
   }
 }
 

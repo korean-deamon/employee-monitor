@@ -34,11 +34,11 @@ REDUNDANT_SIMILARITY = 0.93
 # range of head positions covered, so enrollment walks the person through poses
 # instead of taking N shots of them sitting still.
 ENROLL_POSES = [
-    ("To'g'riga qarang", 2),
-    ("Boshingizni chapga buring", 2),
-    ("Boshingizni o'ngga buring", 2),
-    ("Biroz yuqoriga qarang", 1),
-    ("Biroz pastga qarang", 1),
+    ("Смотрите прямо", 2),
+    ("Поверните голову влево", 2),
+    ("Поверните голову вправо", 2),
+    ("Посмотрите немного вверх", 1),
+    ("Посмотрите немного вниз", 1),
 ]
 
 

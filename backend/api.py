@@ -73,7 +73,7 @@ def require_manager(admin_session: str | None = Cookie(default=None)):
         if expiry < now:
             del _admin_sessions[token]
     if not admin_session or _admin_sessions.get(admin_session, 0) < now:
-        raise HTTPException(status_code=403, detail="Boshqaruv paroli kerak")
+        raise HTTPException(status_code=403, detail="Нужен пароль управления")
     return True
 
 
@@ -320,9 +320,9 @@ def monthly_csv(month: str | None = None, _: bool = Depends(require_viewer)):
     report = monthly_report(month=month, _=True)
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["Xodim", "Lavozim", "Ish kuni", "Ishlagan soat", "Tanaffus soat",
-                     "Kechikkan kun", "Kechikish (daqiqa)", "Erta ketish",
-                     "Sababsiz erta ketish", "Qo'lda tuzatilgan"])
+    writer.writerow(["Сотрудник", "Должность", "Рабочих дней", "Отработано часов",
+                     "Перерывы, часов", "Дней с опозданием", "Опоздание (минут)",
+                     "Ранних уходов", "Без причины", "Исправлено вручную"])
     for row in report["employees"]:
         writer.writerow([
             row["name"], row["position"], row["days"],
@@ -331,7 +331,7 @@ def monthly_csv(month: str | None = None, _: bool = Depends(require_viewer)):
             row["late_days"], row["late_minutes"], row["early_leaves"],
             row["unexplained_early_leaves"], row["manual_events"],
         ])
-    filename = f"davomat-{report['month']}.csv"
+    filename = f"posetchaemost-{report['month']}.csv"
     return Response(
         # The BOM is what makes Excel open a UTF-8 CSV without mangling the
         # Uzbek letters; without it the first column header comes out wrong.
@@ -438,7 +438,7 @@ def camera_status(_: bool = Depends(require_viewer)):
 def admin_login(response: Response, password: str = Body(..., embed=True),
                 _: bool = Depends(require_viewer)):
     if not secrets.compare_digest(password, _read_or_create_password(ADMIN_PASS_FILE)):
-        raise HTTPException(status_code=403, detail="Parol noto'g'ri")
+        raise HTTPException(status_code=403, detail="Неверный пароль")
     token = secrets.token_urlsafe(24)
     _admin_sessions[token] = time.time() + ADMIN_SESSION_HOURS * 3600
     response.set_cookie("admin_session", token, httponly=True, samesite="lax",
@@ -465,7 +465,7 @@ def add_employee(first_name: str = Body(...), last_name: str = Body(default=""),
                  position: str = Body(default=""),
                  _v: bool = Depends(require_viewer), _m: bool = Depends(require_manager)):
     if not first_name.strip():
-        raise HTTPException(status_code=400, detail="Ism kiritilmadi")
+        raise HTTPException(status_code=400, detail="Имя не указано")
     con = get_conn()
     employee_id = create_employee(con, first_name, last_name, position)
     con.close()
@@ -478,7 +478,7 @@ def edit_employee(employee_id: int, first_name: str = Body(...), last_name: str 
                   _v: bool = Depends(require_viewer), _m: bool = Depends(require_manager)):
     """Fix a name or change a position without touching faces or history."""
     if not first_name.strip():
-        raise HTTPException(status_code=400, detail="Ism kiritilmadi")
+        raise HTTPException(status_code=400, detail="Имя не указано")
     con = get_conn()
     cur = con.execute(
         "UPDATE employees SET first_name = ?, last_name = ?, position = ? WHERE id = ?",
@@ -487,7 +487,7 @@ def edit_employee(employee_id: int, first_name: str = Body(...), last_name: str 
     con.commit()
     con.close()
     if cur.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Xodim topilmadi")
+        raise HTTPException(status_code=404, detail="Сотрудник не найден")
     return {"ok": True}
 
 
@@ -515,7 +515,7 @@ def start_capture(employee_id: int,
     row = con.execute("SELECT id FROM employees WHERE id = ?", (employee_id,)).fetchone()
     con.close()
     if not row:
-        raise HTTPException(status_code=404, detail="Xodim topilmadi")
+        raise HTTPException(status_code=404, detail="Сотрудник не найден")
 
     ENROLL_RESULT_PATH.unlink(missing_ok=True)
     tmp = ENROLL_REQUEST_PATH.with_suffix(".tmp")
@@ -546,7 +546,7 @@ def issue_pairing_code(employee_id: int,
     con = get_conn()
     if not con.execute("SELECT 1 FROM employees WHERE id = ?", (employee_id,)).fetchone():
         con.close()
-        raise HTTPException(status_code=404, detail="Xodim topilmadi")
+        raise HTTPException(status_code=404, detail="Сотрудник не найден")
     issued = tg.new_code(con, cfg, employee_id)
     con.close()
     return issued
@@ -597,19 +597,19 @@ def edit_event(event_id: int, ts: str = Body(default=""), event: str = Body(defa
     """
     cfg = cfgmod.load()
     if event and event not in ("keldi", "ketdi"):
-        raise HTTPException(status_code=400, detail="event: keldi yoki ketdi")
+        raise HTTPException(status_code=400, detail="event: keldi или ketdi")
     moment = None
     if ts:
         try:
             moment = datetime.fromisoformat(ts).replace(tzinfo=cfgmod.tz(cfg))
         except ValueError:
-            raise HTTPException(status_code=400, detail="ts noto'g'ri")
+            raise HTTPException(status_code=400, detail="Неверный формат ts")
     con = get_conn()
     result = attendance.edit_event(con, cfg, event_id, ts=moment, event=event or None,
                                    reason=reason or None, note=note or None)
     con.close()
     if result is None:
-        raise HTTPException(status_code=404, detail="Yozuv topilmadi")
+        raise HTTPException(status_code=404, detail="Запись не найдена")
     return {"ok": True, "id": result}
 
 
@@ -620,15 +620,15 @@ def add_event(employee_id: int = Body(...), ts: str = Body(...), event: str = Bo
     """Create a record for a day the camera missed entirely."""
     cfg = cfgmod.load()
     if event not in ("keldi", "ketdi"):
-        raise HTTPException(status_code=400, detail="event: keldi yoki ketdi")
+        raise HTTPException(status_code=400, detail="event: keldi или ketdi")
     try:
         moment = datetime.fromisoformat(ts).replace(tzinfo=cfgmod.tz(cfg))
     except ValueError:
-        raise HTTPException(status_code=400, detail="ts noto'g'ri")
+        raise HTTPException(status_code=400, detail="Неверный формат ts")
     con = get_conn()
     if not con.execute("SELECT 1 FROM employees WHERE id = ?", (employee_id,)).fetchone():
         con.close()
-        raise HTTPException(status_code=404, detail="Xodim topilmadi")
+        raise HTTPException(status_code=404, detail="Сотрудник не найден")
     event_id = attendance.add_event(con, cfg, employee_id, moment, event,
                                     reason=reason or None, note=note or None)
     con.close()
@@ -646,7 +646,7 @@ def restore_event(event_id: int,
     con.commit()
     con.close()
     if cur.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Bekor qilingan yozuv topilmadi")
+        raise HTTPException(status_code=404, detail="Отменённая запись не найдена")
     return {"ok": True}
 
 
@@ -660,12 +660,12 @@ def cancel_event(event_id: int,
     """
     con = get_conn()
     cur = con.execute(
-        """UPDATE attendance_events SET cancelled = 1, note = COALESCE(note, 'Admin bekor qildi')
+        """UPDATE attendance_events SET cancelled = 1, note = COALESCE(note, 'Отменено администратором')
             WHERE id = ?""", (event_id,))
     con.commit()
     con.close()
     if cur.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Yozuv topilmadi")
+        raise HTTPException(status_code=404, detail="Запись не найдена")
     return {"ok": True}
 
 

@@ -175,15 +175,15 @@ class Enroller:
                 "SELECT embedding FROM face_embeddings WHERE employee_id = ?",
                 (self.request["employee_id"],)).fetchall()]
             self._report("running")
-            print(f"[enroll] boshlandi: employee_id={self.request['employee_id']}")
+            print(f"[enroll] начато: employee_id={self.request['employee_id']}")
 
         if now > self.request["expires_at"]:
-            self._finish("timeout", f"Vaqt tugadi — {self.saved} ta namuna olindi")
-            print(f"[enroll] vaqt tugadi ({self.saved} ta namuna)")
+            self._finish("timeout", f"Время вышло — снято образцов: {self.saved}")
+            print(f"[enroll] время вышло (образцов: {self.saved})")
             return False
 
         if not faces:
-            self._report("running", "Yuz ko'rinmayapti")
+            self._report("running", "Лицо не видно")
             return True
         if now < self.next_sample_at:
             return True
@@ -192,10 +192,10 @@ class Enroller:
         face = max(faces, key=lambda f: (f["bbox"][2] - f["bbox"][0]) * (f["bbox"][3] - f["bbox"][1]))
 
         if face["det_score"] < MIN_DET_SCORE:
-            self._wait(now, "Yuz aniq ko'rinmayapti — qimirlamay turing")
+            self._wait(now, "Лицо видно нечётко — не двигайтесь")
             return True
         if face["bbox"][2] - face["bbox"][0] < MIN_FACE_WIDTH_PX:
-            self._wait(now, "Kameraga yaqinroq keling")
+            self._wait(now, "Подойдите ближе к камере")
             return True
 
         # Catch the same person being added twice under two names before any
@@ -204,9 +204,9 @@ class Enroller:
             dup = find_duplicate(con, face["embedding"], exclude_employee_id=self.request["employee_id"])
             if dup:
                 self._finish("duplicate",
-                             f"Bu yuz allaqachon ro'yxatda: {dup['name']} "
-                             f"(o'xshashlik {dup['similarity']:.2f})")
-                print(f"[enroll] rad etildi — allaqachon {dup['name']} sifatida ro'yxatda")
+                             f"Это лицо уже в списке: {dup['name']} "
+                             f"(сходство {dup['similarity']:.2f})")
+                print(f"[enroll] отклонено — уже зарегистрировано как {dup['name']}")
                 return False
 
         if self.stored:
@@ -214,11 +214,11 @@ class Enroller:
             if closest < MATCH_THRESHOLD:
                 # Someone walked in front of the camera mid-enrollment; storing
                 # their face under this name would poison the record.
-                self._wait(now, "Boshqa odam ko'rinyapti — skanerlanayotgan xodim kameraga qarasin")
+                self._wait(now, "Виден другой человек — пусть в камеру смотрит сканируемый сотрудник")
                 return True
             if closest > REDUNDANT_SIMILARITY and self.skips_in_row < MAX_SKIPS_BEFORE_ACCEPT:
                 self.skips_in_row += 1
-                self._wait(now, "Boshingizni biroz ko'proq buring")
+                self._wait(now, "Поверните голову чуть больше")
                 return True
 
         FACES_DIR.mkdir(parents=True, exist_ok=True)
@@ -233,7 +233,7 @@ class Enroller:
         self.saved += 1
         self.saved_in_pose += 1
         self.skips_in_row = 0
-        print(f"[enroll] namuna {self.saved}/{self.request['samples']} — {self._pose()[0]}")
+        print(f"[enroll] образец {self.saved}/{self.request['samples']} — {self._pose()[0]}")
 
         if self.saved_in_pose >= self._pose()[1]:
             self.pose_index += 1
@@ -244,7 +244,7 @@ class Enroller:
 
         if self.pose_index >= len(ENROLL_POSES) or self.saved >= self.request["samples"]:
             self._finish("done")
-            print("[enroll] tugadi")
+            print("[enroll] завершено")
             return False
         self._report("running")
         return True
@@ -261,10 +261,10 @@ def draw_labels(frame, annotations, progress=0.0, min_width=0):
         x1, y1, x2, y2 = (int(v) for v in ann["bbox"])
         wide_enough = (x2 - x1) >= min_width
         color = COLOR_KNOWN if ann["name"] else COLOR_UNKNOWN
-        label = ann["name"] or "noma'lum"
+        label = ann["name"] or "неизвестно"
         if ann["name"]:
             label += f"  {ann['similarity']:.2f}"
-        label += f"  {x2 - x1}px" + ("" if wide_enough else " uzoq")
+        label += f"  {x2 - x1}px" + ("" if wide_enough else " далеко")
         cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2 if wide_enough else 1)
         (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
         cv2.rectangle(frame, (x1, max(0, y1 - th - 8)), (x1 + tw + 8, y1), color, -1)
@@ -291,21 +291,21 @@ def main():
     # A crash or a power cut can leave yesterday open; settle it before counting
     # anyone as present today.
     for closed in attendance.close_stale(con, cfg, cfgmod.now_utc()):
-        print(f"[ketdi] {name_of(ids_names, closed['employee_id'])} "
-              f"(oldingi kun yopildi, {closed['ts']})")
+        print(f"[вышел] {name_of(ids_names, closed['employee_id'])} "
+              f"(закрыт прошлый день, {closed['ts']})")
     con.close()
-    print(f"Ish vaqti: {cfg['work_start']}–{cfg['work_end']} ({cfg['timezone']})")
-    print(f"Turish sharti: yuz kadrning ≥{cfg['stand_min_face_ratio']:.0%} kengligi "
-          f"(kamida {cfg['stand_min_face_px']}px), {cfg['stand_seconds']} sekund")
-    print(f"Ro'yxatdan o'tgan yuz namunalari: {matrix.shape[0]}")
+    print(f"Рабочее время: {cfg['work_start']}–{cfg['work_end']} ({cfg['timezone']})")
+    print(f"Условие остановки: лицо ≥{cfg['stand_min_face_ratio']:.0%} ширины кадра "
+          f"(минимум {cfg['stand_min_face_px']}px), {cfg['stand_seconds']} сек")
+    print(f"Образцов лиц в базе: {matrix.shape[0]}")
     if matrix.shape[0] == 0:
-        print("DIQQAT: hech kim ro'yxatdan o'tmagan — avval enroll.py ni ishlating")
+        print("ВНИМАНИЕ: никто не зарегистрирован — сначала запустите enroll.py")
 
     cap = cv2.VideoCapture(CAMERA_INDEX)
     if not cap.isOpened():
-        print("ERROR: kamera ochilmadi", CAMERA_INDEX)
+        print("ОШИБКА: камера не открылась", CAMERA_INDEX)
         return
-    print("Kamera ochildi, tanish boshlandi")
+    print("Камера открыта, распознавание запущено")
 
     enroller = Enroller()
     stand = StandDetector(cfg)
@@ -353,7 +353,7 @@ def main():
                     found_bodies = bodies.detect(frame, cfg["body_mode"],
                                                  cfg["body_min_confidence"])
                 except Exception as e:
-                    print("[tana] aniqlash uzildi:", e)
+                    print("[тело] сбой распознавания:", e)
                     found_bodies = []
 
                 if counter is not None:
@@ -365,12 +365,12 @@ def main():
                             stamp = datetime.now(timezone.utc)
                             for event in crossed:
                                 counting.record(con2, cfg, event["direction"], stamp)
-                                print(f"[{event['direction']}] eshikdan o'tdi")
+                                print(f"[{event['direction']}] прошёл через дверь")
                             counter_totals = counting.totals_for_day(
                                 con2, cfgmod.local_day(cfg, stamp))
                             con2.close()
                     except Exception as e:
-                        print("[counter] uzildi, davomat ishlayapti:", e)
+                        print("[счётчик] сбой, учёт продолжает работать:", e)
 
             run_recognition = (now - last_recognize) >= RECOGNIZE_EVERY_SECONDS
             if run_recognition:
@@ -418,7 +418,7 @@ def main():
                         name = name_of(ids_names, stood)
                         result = attendance.register_stand(con, cfg, stood, ts)
                         if result["status"] == "already":
-                            print(f"[turdi] {name} — allaqachon yozilgan")
+                            print(f"[стоял] {name} — уже записано")
                             tg.already_message(cfg, con, stood, result["ts"])
                         else:
                             print(f"[{result['event']}] {name} — {result['grade']['text']}")
@@ -433,15 +433,15 @@ def main():
                         # gets their arrival, just marked as the weaker source.
                         first = attendance.register_first_sighting(con, cfg, emp, ts)
                         if first:
-                            print(f"[keldi] {name_of(ids_names, emp)} "
-                                  f"(turmadi) — {first['grade']['text']}")
+                            print(f"[вошёл] {name_of(ids_names, emp)} "
+                                  f"(не останавливался) — {first['grade']['text']}")
                             announce(cfg, con, emp, first, ts)
 
                     if now - last_close_check >= CLOSE_CHECK_EVERY_SECONDS:
                         last_close_check = now
                         for closed in attendance.close_stale(con, cfg, ts):
-                            print(f"[ketdi] {name_of(ids_names, closed['employee_id'])} "
-                                  f"(o'zi yopildi, {closed['ts']})")
+                            print(f"[вышел] {name_of(ids_names, closed['employee_id'])} "
+                                  f"(закрыто системой, {closed['ts']})")
                             tg.auto_close_message(cfg, con, closed["employee_id"],
                                                   closed["id"], closed["ts"])
 
@@ -480,7 +480,7 @@ def main():
                     if ok2:
                         atomic_write_bytes(COUNTER_SNAPSHOT_PATH, buf2.tobytes())
                 except Exception as e:
-                    print("[counter] chizish uzildi:", e)
+                    print("[счётчик] сбой отрисовки:", e)
             if ok_enc:
                 atomic_write_bytes(SNAPSHOT_PATH, buf.tobytes())
     finally:
@@ -489,8 +489,8 @@ def main():
         # having left here. Whoever is still open gets closed at the next start,
         # timed at their real last sighting.
         if present:
-            print(f"To'xtatildi — {len(present)} ta ochiq kun qoldi, "
-                  f"keyingi ishga tushishda yopiladi")
+            print(f"Остановлено — открытых дней: {len(present)}, "
+                  f"будут закрыты при следующем запуске")
 
 
 if __name__ == "__main__":

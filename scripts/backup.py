@@ -59,22 +59,22 @@ def prune(keep_days: int) -> list:
 def listing():
     files = sorted(BACKUP_DIR.glob("activity_*.db"))
     if not files:
-        print("Zaxira nusxa yo'q.")
+        print("Резервных копий нет.")
         return
     total = 0
-    print(f"\n{len(files)} ta nusxa — {BACKUP_DIR}\n")
+    print(f"\nКопий: {len(files)} — {BACKUP_DIR}\n")
     for path in files:
         info = path.stat()
         total += info.st_size
         age = datetime.now() - datetime.fromtimestamp(info.st_mtime)
-        print(f"  {path.name:<30} {human(info.st_size):>9}   {age.days} kun oldin")
-    print(f"\n  jami: {human(total)}\n")
+        print(f"  {path.name:<30} {human(info.st_size):>9}   {age.days} дн. назад")
+    print(f"\n  всего: {human(total)}\n")
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--list", action="store_true", help="nusxalarni ko'rsatish")
-    parser.add_argument("--keep", type=int, default=KEEP_DAYS, help="necha kun saqlansin")
+    parser.add_argument("--list", action="store_true", help="показать копии")
+    parser.add_argument("--keep", type=int, default=KEEP_DAYS, help="сколько дней хранить")
     args = parser.parse_args()
 
     if args.list:
@@ -82,13 +82,13 @@ def main():
         return
 
     if not DB_PATH.exists():
-        sys.exit(f"baza topilmadi: {DB_PATH}")
+        sys.exit(f"база не найдена: {DB_PATH}")
 
     target = make_backup()
     removed = prune(args.keep)
-    print(f"zaxira: {target.name}  ({human(target.stat().st_size)})")
+    print(f"копия: {target.name}  ({human(target.stat().st_size)})")
     if removed:
-        print(f"o'chirildi ({args.keep} kundan eski): {len(removed)} ta")
+        print(f"удалено (старше {args.keep} дн.): {len(removed)}")
 
 
 if __name__ == "__main__":

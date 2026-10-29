@@ -1,59 +1,61 @@
-# Texnik topshiriq — Xodimlar davomati va faoliyat monitoringi
+# Техническое задание — учёт посещаемости и активности сотрудников
 
 | | |
 |---|---|
-| **Loyiha** | employee-monitor |
-| **Versiya** | 2.0 |
-| **Sana** | 2026-10-19 |
-| **Holati** | Kelishuvga tayyor |
+| **Проект** | employee-monitor |
+| **Версия** | 2.0 |
+| **Дата** | 2026-10-29 |
+| **Статус** | Готово к согласованию |
 
 ---
 
-## 1. Loyihaning maqsadi
+## 1. Цель проекта
 
-Kompaniya xodimlarining ish vaqtini kamera orqali avtomatik hisobga olish:
+Автоматический учёт рабочего времени сотрудников по камере:
 
-- xodim **qachon keldi** va **qachon ketdi** — qo'lda belgilashsiz
-- **tanaffus va erta ketish** sababini xodim o'zi Telegram orqali belgilaydi
-- rahbariyat uchun **kunlik va oylik hisobot**
-- xona kamerasi orqali **ish joyida borligi** va **faoliyat holati**
+- когда сотрудник **пришёл** и когда **ушёл** — без ручных отметок
+- причину **перерыва или раннего ухода** сотрудник указывает сам через Telegram
+- **ежедневные и месячные отчёты** для руководства
+- по камере в помещении — **присутствие на рабочем месте** и состояние активности
 
-### 1.1 Nima uchun kamera
+### 1.1 Почему камера
 
-Barmoq izi yoki karta tizimidan farqi: qo'shimcha jihoz tarqatilmaydi, karta yo'qolmaydi, bir xodim boshqasining kartasini bosib qo'yolmaydi. Xodim shunchaki kameraga qarab turadi.
+Отличие от отпечатка пальца или карты: не нужно раздавать дополнительные
+устройства, карта не теряется, один сотрудник не может отметиться за другого.
+Сотрудник просто смотрит в камеру.
 
-### 1.2 Loyiha hajmiga kirmaydigan narsalar
+### 1.2 Что не входит в объём работ
 
-- Ish haqini hisoblash
-- Kadrlar bo'limi tizimi bilan integratsiya (keyingi bosqichlarda ko'rib chiqilishi mumkin)
-- Video arxivini uzoq muddat saqlash (xavfsizlik kamerasi vazifasini bajarmaydi)
+- Расчёт заработной платы
+- Интеграция с кадровой системой (может быть рассмотрена позже)
+- Долговременное хранение видеоархива — система не заменяет охранное видеонаблюдение
 
 ---
 
-## 2. Atamalar
+## 2. Термины
 
-| Atama | Ma'nosi |
+| Термин | Значение |
 |---|---|
-| **Ataylab turish** | Xodim kameraga yaqin kelib, 3 sekund joyida turishi. Davomat shu bilan belgilanadi |
-| **Ko'rinish** | Kamera xodimni tanigan har qanday payt (yurib o'tgan bo'lsa ham) |
-| **Keldi / Ketdi** | Bazaga yozilgan davomat hodisasi |
-| **Bog'lanish kodi** | Xodimning Telegram akkauntini tizimga ulash uchun bir martalik kod |
-| **Embedding** | Yuzning 512 raqamli matematik tavsifi. Rasm emas, qayta tiklanmaydi |
+| **Остановка** | Сотрудник подходит к камере и стоит 3 секунды. Именно так фиксируется посещаемость |
+| **Появление** | Любой момент, когда камера распознала сотрудника (в том числе проходящего мимо) |
+| **Пришёл / Ушёл** | Записанное в базу событие посещаемости |
+| **Код привязки** | Одноразовый код для подключения аккаунта Telegram к системе |
+| **Эмбеддинг** | Математическое описание лица из 512 чисел. Не изображение, обратно не восстанавливается |
 
 ---
 
-## 3. Tizim tuzilishi
+## 3. Устройство системы
 
 ```
 ┌──────────────────┐     ┌──────────────────┐
-│  Kirish kamerasi │     │  Xona kamerasi   │
+│  Камера входа    │     │  Камера в зале   │
 │  (RTSP, 1080p)   │     │  (RTSP, 1080p)   │
 └────────┬─────────┘     └────────┬─────────┘
          │                        │
          ▼                        ▼
 ┌──────────────────┐     ┌──────────────────┐
 │  entrance.py     │     │  room.py         │
-│  yuz tanish      │     │  holat tahlili   │
+│  распознавание   │     │  анализ позы     │
 └────────┬─────────┘     └────────┬─────────┘
          │                        │
          └───────────┬────────────┘
@@ -65,376 +67,415 @@ Barmoq izi yoki karta tizimidan farqi: qo'shimcha jihoz tarqatilmaydi, karta yo'
         ┌────────────┼────────────┐
         ▼            ▼            ▼
    ┌─────────┐  ┌─────────┐  ┌─────────┐
-   │   API   │  │ Telegram│  │ Hisobot │
-   │ FastAPI │  │   bot   │  │         │
+   │   API   │  │ Telegram│  │  Отчёты │
+   │ FastAPI │  │   бот   │  │         │
    └────┬────┘  └────┬────┘  └─────────┘
         │            │
         ▼            ▼
-   Dashboard     Xodimlar
-   + Admin       telefoni
+   Дашборд       Телефоны
+   + админка     сотрудников
 ```
 
-**Muhim qoida:** har bir kamerani faqat bitta jarayon ochadi. Bitta qurilmani ikki jarayon ocholmaydi.
+**Важное правило:** каждую камеру открывает ровно один процесс. Два процесса
+не могут открыть одно устройство.
 
-### 3.1 Vazifalarning ajratilishi
+### 3.1 Разделение задач
 
-| Komponent | Vazifasi |
+| Компонент | Назначение |
 |---|---|
-| `entrance.py` | Kirish kamerasi. Yuz tanish, ataylab turishni aniqlash, davomat yozish |
-| `room.py` | Xona kamerasi. Ish joyi zonalari, faoliyat holati. **Davomatga yozmaydi** |
-| `api.py` | Dashboard, admin panel, hisobotlar |
-| `bot.py` | Telegram: bog'lanish, xabarlar, tugmalar |
+| `entrance.py` | Камера входа. Распознавание, определение остановки, запись посещаемости |
+| `room.py` | Камера в зале. Зоны рабочих мест, состояние активности. **Посещаемость не пишет** |
+| `api.py` | Дашборд, админ-панель, отчёты |
+| `bot.py` | Telegram: привязка, сообщения, кнопки |
 
-**Davomatni faqat kirish kamerasi yozadi.** Xona kamerasi faqat tekshiradi. Aks holda xodim monitorga o'girilganda soxta "ketdi" yozilib ketadi.
+**Посещаемость записывает только камера входа.** Камера в зале лишь проверяет.
+Иначе отвернувшийся от монитора сотрудник будет весь день отмечаться как
+ушедший и пришедший.
 
 ---
 
-## 4. Jihozlarga talablar
+## 4. Требования к оборудованию
 
-### 4.1 Kameralar
+### 4.1 Камеры
 
-| Talab | Kirish kamerasi | Xona kamerasi |
+| Требование | Камера входа | Камера в зале |
 |---|---|---|
-| Turi | IP kamera, RTSP | IP kamera, RTSP |
-| Ruxsat | 1080p (minimum) | 1080p (minimum) |
-| Kadr tezligi | 25 fps | 15 fps yetadi |
-| PTZ (burilish) | **Kerak emas** | **Kerak emas** |
-| Balandligi | **1.5–1.7 m**, yuz balandligida | Burchakda, 2.2–2.8 m |
-| Yo'nalishi | **Odam yurib kelayotgan tomonga**, yondan emas | Barcha ish joylarini ko'radigan |
-| Yorug'lik | Deraza kameraga qarshi bo'lmasligi kerak | — |
+| Тип | IP-камера, RTSP | IP-камера, RTSP |
+| Разрешение | 1080p (минимум) | 1080p (минимум) |
+| Частота кадров | 25 fps | достаточно 15 fps |
+| PTZ (поворотная) | **не нужна** | **не нужна** |
+| Высота | **1.5–1.7 м**, на уровне лица | в углу, 2.2–2.8 м |
+| Направление | **навстречу идущему человеку**, не сбоку | охватывает все рабочие места |
+| Освещение | окно не должно быть напротив камеры | — |
 
-> **Diqqat:** kirish kamerasining balandligi hal qiluvchi ahamiyatga ega. Shiftdan pastga qaragan kamera yuz tanish aniqligini keskin tushiradi. O'rnatuvchilarga buni oldindan aytish kerak — keyin ko'chirish qiyin.
+> **Внимание:** высота камеры входа имеет решающее значение. Камера, смотрящая
+> с потолка вниз, резко снижает точность распознавания лиц. Это нужно сказать
+> монтажникам заранее — переносить потом сложно.
 
-### 4.2 Server
+### 4.2 Сервер
 
-| Talab | Qiymat |
+| Требование | Значение |
 |---|---|
-| GPU | NVIDIA, CUDA qo'llab-quvvatlashi bilan |
-| O'lchangan ish unumi | RTX 3050 6GB da 49 ms/kadr |
-| Operativ xotira | 8 GB minimum |
-| Disk | 100 GB (baza + yuz namunalari) |
-| Tarmoq | Kameralar bilan bir xil lokal tarmoqda |
-| Elektr | **UPS tavsiya etiladi** — elektr o'chsa davomat yozilmay qoladi |
+| GPU | NVIDIA с поддержкой CUDA |
+| Измеренная производительность | 49 мс/кадр на RTX 3050 6GB |
+| Оперативная память | минимум 8 ГБ |
+| Диск | 100 ГБ (база и образцы лиц) |
+| Сеть | в одной локальной сети с камерами |
+| Питание | **рекомендуется ИБП** — при отключении питания посещаемость не записывается |
 
-### 4.3 Tarmoq
+### 4.3 Сеть
 
-- Kameralar va server bir xil lokal tarmoqda
-- Kameralarning RTSP manzili va paroli kerak
-- Internet faqat Telegram uchun kerak (davomat yozish internetsiz ham ishlaydi)
+- Камеры и сервер в одной локальной сети
+- Нужны RTSP-адреса камер и пароли
+- Интернет требуется только для Telegram — запись посещаемости работает и без него
 
 ---
 
-## 5. Funksional talablar
+## 5. Функциональные требования
 
-### 5.1 Xodimni ro'yxatga olish
+### 5.1 Регистрация сотрудника
 
-**Holati: bajarilgan (V1)**
+**Статус: выполнено**
 
-Admin panelda:
+В админ-панели:
 
-1. Ism, Familiya, Lavozim kiritiladi
-2. "Qo'shish va yuzini skanerlash" bosiladi
-3. Tizim xodimni **burchaklar bo'yicha** yo'naltiradi:
+1. Вводятся Имя, Фамилия, Должность
+2. Нажимается «Добавить и отсканировать лицо»
+3. Система ведёт сотрудника **по ракурсам**:
 
-| Burchak | Namuna soni |
+| Ракурс | Образцов |
 |---|---|
-| To'g'riga qarang | 2 |
-| Boshingizni chapga buring | 2 |
-| Boshingizni o'ngga buring | 2 |
-| Biroz yuqoriga qarang | 1 |
-| Biroz pastga qarang | 1 |
-| **Jami** | **8** |
+| Смотрите прямо | 2 |
+| Поверните голову влево | 2 |
+| Поверните голову вправо | 2 |
+| Посмотрите немного вверх | 1 |
+| Посмотрите немного вниз | 1 |
+| **Всего** | **8** |
 
-**Nega burchak bo'yicha:** aniqlik namuna *soniga* emas, qamrab olingan **burchaklar xilma-xilligiga** bog'liq. Bir joyda turib olingan 8 namuna amalda bitta namunaga teng.
+**Почему по ракурсам:** точность зависит не от *количества* образцов, а от
+**разнообразия охваченных ракурсов**. Восемь снимков из одного положения
+равноценны одному.
 
-**Namuna rad etilish shartlari:**
+**Условия отклонения образца:**
 
-| Shart | Xabar |
+| Условие | Сообщение |
 |---|---|
-| `det_score < 0.60` | "Yuz aniq ko'rinmayapti" |
-| Yuz kengligi `< 70 px` | "Kameraga yaqinroq keling" |
-| Mavjud namunaga `> 0.93` o'xshash | "Boshingizni biroz ko'proq buring" |
-| Mavjud namunaga `< 0.40` o'xshash | "Boshqa odam ko'rinyapti" |
+| `det_score < 0.60` | «Лицо видно нечётко» |
+| Ширина лица `< 70 px` | «Подойдите ближе к камере» |
+| Сходство с имеющимся `> 0.93` | «Поверните голову чуть больше» |
+| Сходство с имеющимся `< 0.40` | «Виден другой человек» |
 
-**Takroriy yuz nazorati:** birinchi namuna saqlanishidan **oldin** yangi yuz bazadagi barcha namunalar bilan solishtiriladi. O'xshashlik `0.40` dan yuqori bo'lsa ro'yxatga olish rad etiladi:
+**Контроль дублирования лица:** **до** сохранения первого образца новое лицо
+сравнивается со всеми образцами в базе. При сходстве выше `0.40` регистрация
+отклоняется:
 
-> Bu yuz allaqachon ro'yxatda: Ali Valiyev (o'xshashlik 0.85)
+> Это лицо уже в списке: Али Валиев (сходство 0.85)
 
-Bu zarur, chunki bir odam ikki ism bilan kiritilsa, tizim ikki yozuv orasida almashib qoladi va davomat buziladi.
+Это необходимо: если один человек заведён под двумя именами, система начинает
+путать записи, и посещаемость обоих становится недостоверной.
 
-**Tahrirlash:** ism, familiya, lavozimni o'zgartirish yuz namunalariga va davomat tarixiga tegmaydi.
+**Редактирование:** изменение имени, фамилии и должности не затрагивает ни
+образцы лица, ни историю посещаемости.
 
-### 5.2 Keldi aniqlash
+### 5.2 Определение прихода
 
-**Asosiy yo'l — ataylab turish:**
+**Основной путь — осознанная остановка:**
 
-Uch shart birga bajarilishi kerak:
+Три условия должны выполниться одновременно:
 
-| Shart | Qiymat |
+| Условие | Значение |
 |---|---|
-| Yuz kengligi | `≥ 180 px` (~1.5 m masofa, sozlanadi) |
-| Turish davomiyligi | `≥ 3 sekund` (sozlanadi) |
-| Joyida turishi | Yuz markazi `< 15%` kadr kengligida siljishi |
+| Ширина лица | `≥ 180 px` (~1.5 м, настраивается) |
+| Длительность | `≥ 3 секунды` (настраивается) |
+| Неподвижность | смещение центра лица `< 15%` ширины кадра |
 
-Uch kadrdan kamida ikkitasi bir xil xodimni ko'rsatishi kerak (**ovoz berish**) — bitta kadrdagi xato natijaga ta'sir qilmaydi.
+Как минимум два кадра из трёх должны указать на одного и того же сотрудника
+(**голосование**) — ошибка в одном кадре не влияет на результат.
 
-**Zaxira yo'l:** xodim ertalab turishni esdan chiqarsa, **bugungi birinchi ko'rinishi** `keldi` deb yoziladi (`source = first_sighting`).
+**Запасной путь:** если сотрудник утром забыл остановиться, его **первое за
+день появление** записывается как приход (`source = first_sighting`).
 
-**Takroriy yozuv yo'q:** `keldi` yozilgandan keyin 60 sekund ichidagi yangi turish hisobga olinmaydi.
+**Без повторов:** после записи прихода новая остановка в течение 60 секунд не
+учитывается.
 
-### 5.3 Ketdi aniqlash
+### 5.3 Определение ухода
 
-**Asosiy yo'l:** xodim ketishdan oldin kameraga kelib turadi (5.2 dagi uchala shart bilan).
+**Основной путь:** перед уходом сотрудник подходит к камере и стоит (те же три
+условия из 5.2).
 
-**Zaxira yo'l:** xodim turishni esdan chiqarsa va **30 daqiqa** ko'rinmasa, tizim **oxirgi ko'rinish vaqtini** olib kunni o'zi yopadi (`source = auto_close`) va xodimga tasdiqlash xabari yuboradi.
+**Запасной путь:** если забыл и не появлялся **30 минут**, система закрывает
+день сама **по времени последнего появления** (`source = auto_close`) и
+отправляет сотруднику сообщение для подтверждения.
 
-**Hech kimning kuni ochiq qolmaydi.**
+**Ни у кого день не остаётся открытым.**
 
-### 5.4 Vaqt qoidalari
+### 5.4 Правила времени
 
-Soat davomatni **aniqlamaydi**, faqat **baholaydi**. Kamera doim yoqilgan.
+Часы **не определяют** посещаемость, они её **оценивают**. Камера работает
+круглосуточно.
 
-| Vaqt | Ta'siri |
+| Время | Эффект |
 |---|---|
-| `09:00` gacha kelgan | Erta. Yoziladi, "N daqiqa erta" deb ko'rsatiladi |
-| `09:00` dan keyin kelgan | Kechikish. Yoziladi, "N daqiqa kechikish" deb ko'rsatiladi |
-| `18:00` dan keyin ketgan | Normal. Savol berilmaydi |
-| `18:00` dan oldin ketgan | **Savol beriladi** (5.6.3) |
+| Пришёл до `09:00` | Раньше. Записывается, указывается «раньше на N минут» |
+| Пришёл после `09:00` | Опоздание. Записывается, указывается «опоздание N минут» |
+| Ушёл после `18:00` | Обычный день. Вопрос не задаётся |
+| Ушёл до `18:00` | **Задаётся вопрос** (5.6.3) |
 
-> **Nega kamera doim yoqilgan:** agar kamera 09:00 dan oldin o'chiq bo'lsa, 08:45 da kelgan xodimning kelgani yozilmaydi va u jazolangan bo'ladi. Shuningdek 19:30 gacha ishlagan xodimning ketgani yozilmaydi.
+> **Почему камера работает круглосуточно:** если камера выключена до 09:00,
+> приход сотрудника в 08:45 не будет записан и он окажется наказан. То же с
+> работой до 19:30 — уход не зафиксируется.
 
-Soat qiymatlari sozlamadan o'zgartiriladi (smena uchun).
+Значения часов меняются в настройках (для смен).
 
-### 5.5 Telegram bog'lanish (pairing)
+### 5.5 Привязка Telegram
 
-Har bir xodim o'z Telegram akkauntini tizimga **bir marta** ulaydi.
+Каждый сотрудник **один раз** подключает свой аккаунт Telegram.
 
-#### 5.5.1 Jarayon
+#### 5.5.1 Порядок
 
 ```
-1. ADMIN                 Admin panelda xodimni tanlaydi
-                         → "Telegram kodini olish" bosadi
-                         → Ekranda kod chiqadi:  K7M4-RPQX
+1. АДМИН                 Выбирает сотрудника в админ-панели
+                         → нажимает «Получить код»
+                         → на экране появляется:  K7M4-RPQX
 
-2. ADMIN → XODIM         Kodni xodimga beradi
-                         (og'zaki, qog'ozda yoki xabar bilan)
+2. АДМИН → СОТРУДНИК     Передаёт код
+                         (устно, на бумаге или сообщением)
 
-3. XODIM                 Botni ochadi, /start bosadi
-                         ← Bot: "Salom! Davomat tizimiga ulanish
-                                 uchun admin bergan kodni yuboring."
+3. СОТРУДНИК             Открывает бота, нажимает /start
+                         ← Бот: «Здравствуйте! Чтобы подключиться,
+                                 отправьте код от администратора.»
 
-4. XODIM                 Kodni yuboradi:  K7M4-RPQX
+4. СОТРУДНИК             Отправляет код:  K7M4-RPQX
 
-5. TIZIM                 Kodni tekshiradi:
-                         - mavjudmi
-                         - muddati o'tmaganmi
-                         - ishlatilmaganmi
-                         - bu Telegram ID boshqa xodimga ulanmaganmi
+5. СИСТЕМА               Проверяет код:
+                         - существует ли
+                         - не истёк ли срок
+                         - не использован ли
+                         - не привязан ли этот Telegram к другому сотруднику
 
-6. TIZIM                 telegram_id ↔ employee_id bog'lanadi
-                         Kod ishlatilgan deb belgilanadi
-                         ← Bot: "✓ Ulandingiz.
-                                 Siz: Ali Valiyev · Sotuv bo'limi"
+6. СИСТЕМА               Связывает telegram_id ↔ employee_id
+                         Код помечается использованным
+                         ← Бот: «✅ Вы подключены.
+                                 Вы: Али Валиев · Отдел продаж»
 
-7. ADMIN                 Admin panelda ko'rinadi:
-                         Telegram: ulangan ✓
+7. АДМИН                 В админ-панели видит:
+                         Telegram: привязан ✓
 ```
 
-#### 5.5.2 Kodga talablar
+#### 5.5.2 Требования к коду
 
-| Talab | Qiymat | Sababi |
+| Требование | Значение | Причина |
 |---|---|---|
-| Uzunligi | 8 belgi, `K7M4-RPQX` ko'rinishida | Og'zaki aytishga qulay |
-| Alifbo | Raqam + harf, `0 O 1 I L` **ishlatilmaydi** | Adashtirmaslik uchun |
-| Muddati | 24 soat | Admin qog'ozda berishi mumkin |
-| Ishlatilishi | **Bir marta** | Qayta ishlatib bo'lmaydi |
-| Xato urinish | Bir Telegram ID uchun soatda **5 marta** | Kodni taxmin qilishning oldini olish |
+| Длина | 8 символов, вид `K7M4-RPQX` | Удобно продиктовать |
+| Алфавит | Цифры и буквы, **без** `0 O 1 I L` | Чтобы не путали |
+| Срок | 24 часа | Админ может выдать на бумаге |
+| Использование | **один раз** | Повторно не работает |
+| Неверные попытки | **5 в час** на один Telegram-аккаунт | Чтобы код нельзя было подобрать |
 
-#### 5.5.3 Qo'shimcha holatlar
+#### 5.5.3 Особые случаи
 
-| Holat | Tizim nima qiladi |
+| Ситуация | Поведение системы |
 |---|---|
-| Xodim telefonini almashtirdi | Admin yangi kod beradi, eski bog'lanish o'chadi |
-| Telegram ID allaqachon boshqa xodimga ulangan | Rad etiladi: "Bu akkaunt allaqachon ulangan" |
-| Bog'lanmagan odam botga yozdi | Faqat "kodni yuboring" deb javob beradi, boshqa hech narsa ko'rsatmaydi |
-| Xodim ishdan bo'shadi | Admin bog'lanishni uzadi, xabarlar to'xtaydi |
+| Сотрудник сменил телефон | Админ выдаёт новый код, старая привязка снимается |
+| Telegram уже привязан к другому сотруднику | Отказ: «Этот аккаунт привязан к другому сотруднику» |
+| Непривязанный человек пишет боту | В ответ только просьба прислать код, больше ничего не раскрывается |
+| Сотрудник уволился | Админ снимает привязку, сообщения прекращаются |
 
-#### 5.5.4 Bot buyruqlari
+#### 5.5.4 Команды бота
 
-| Buyruq | Vazifasi |
+| Команда | Назначение |
 |---|---|
-| `/start` | Salomlashish. Bog'lanmagan bo'lsa kod so'raydi, bog'langan bo'lsa holatni ko'rsatadi |
-| `/bugun` | Bugungi yozuv: keldi, ketdi, tanaffuslar, jami soat |
-| `/hafta` | Shu haftaning kunlik jadvali va jami soati |
-| `/help` | Yordam |
+| `/start` | Приветствие. Непривязанному — запрос кода, привязанному — состояние |
+| `/bugun` | Запись за сегодня: приход, уход, перерывы, всего часов |
+| `/hafta` | Текущая неделя по дням и итог |
+| `/kechikish` | Каждое опоздание за 30 дней и сумма |
+| `/help` | Справка |
 
-> Xodim o'z ma'lumotini istagan vaqtda ko'rishi — bu shaffoflik talabi, shikoyatlarning oldini oladi.
+> Возможность в любой момент посмотреть свои данные — требование прозрачности,
+> которое снимает большую часть претензий.
 
-### 5.6 Telegram xabarlari
+### 5.6 Сообщения Telegram
 
-#### 5.6.1 Keldi
-
-```
-✓ Keldingiz · 08:47
-   13 daqiqa erta
-```
+#### 5.6.1 Приход
 
 ```
-✓ Keldingiz · 09:17
-   17 daqiqa kechikish
+✅ Вы пришли · 08:47
+   Раньше на 13 минут
 ```
 
-Takroriy turishda:
-
 ```
-● Allaqachon yozilgan · 08:47
-```
-
-#### 5.6.2 Ketdi — 18:00 dan keyin
-
-Savol berilmaydi, ish tugagani aniq:
-
-```
-✓ Ketdingiz · 18:10
-   Bugun: 08:47 – 18:10
-   Jami: 8 soat 31 daqiqa
-   Tanaffus: 52 daqiqa
+✅ Вы пришли · 09:17
+   Опоздание 17 минут
 ```
 
-#### 5.6.3 Ketdi — 18:00 dan oldin
+При повторной остановке:
 
 ```
-   Ketdingizmi? · 15:20
-
-   [ Ha ]   [ Yo'q ]   [ Sabab ]
+ℹ️ Уже записано · 08:47
 ```
 
-| Tugma | Natija |
+#### 5.6.2 Уход после 18:00
+
+Вопрос не задаётся — окончание дня очевидно:
+
+```
+👋 Вы ушли · 18:10
+   Сегодня: 08:47 – 18:10
+   Итого: 8 ч 31 мин
+   Перерыв: 52 минуты
+```
+
+#### 5.6.3 Уход до 18:00
+
+```
+   🚪 Вы ушли? · 15:20
+
+   [ Да ]   [ Нет ]   [ Причина ]
+```
+
+| Кнопка | Результат |
 |---|---|
-| **Ha** | Ketdi deb yoziladi, sababi ko'rsatilmagan. Hisobotda *"sababsiz erta ketish"* |
-| **Yo'q** | Yozuv **bekor qilinadi**, xodim ishxonada deb qoladi |
-| **Sabab** | Sabab ro'yxati chiqadi (5.7) |
+| **Да** | Уход записан, причина не указана. В отчёте — *ранний уход без причины* |
+| **Нет** | Запись **отменяется**, сотрудник считается на работе |
+| **Причина** | Открывается список причин (5.7) |
 
-#### 5.6.4 Zaxira yopilish
-
-```
-   Ketganingizni belgilamadingiz.
-   Oxirgi ko'rinish bo'yicha 18:05 deb yozdik.
-
-   [ To'g'ri ]   [ Tuzatish ]
-```
-
-#### 5.6.5 Javob berilmasa
-
-**Yozuv saqlanib qoladi.** Hisobotda "sababi belgilanmagan" deb turadi. Tizim javob kutib turmaydi va hech narsa to'xtamaydi.
-
-### 5.7 Sabab
-
-"Sabab" bosilganda:
+#### 5.6.4 Автоматическое закрытие
 
 ```
-   Sababi?
+   🌙 Вы не отметили уход.
+   Записали 18:05 — по последнему появлению.
 
-   [ Obed ]            [ Shifokor ]
-   [ Shaxsiy ish ]     [ Ish topshirig'i ]
-   [ Boshqa ]
+   [ Верно ]   [ Исправить ]
 ```
 
-`Boshqa` → xodim matn yozib yuboradi.
+#### 5.6.5 Если ответа нет
 
-Tasdiq:
+**Запись сохраняется.** В отчёте она помечается как «без причины». Система не
+ждёт ответа и ничего не останавливает.
+
+### 5.7 Причина
+
+При нажатии «Причина»:
 
 ```
-✓ Yozildi · 15:20 · Shifokor
+   Причина?
+
+   [ Обед ]            [ Врач ]
+   [ Личное дело ]     [ Рабочее поручение ]
+   [ Другое ]
 ```
 
-#### 5.7.1 Qaytish — tizim o'zi aniqlaydi
+`Другое` → сотрудник пишет текстом.
 
-Sabab belgilangandan keyin **"qaytasizmi?" deb so'ralmaydi**:
+Подтверждение:
 
-- Xodim qaytib kirsa → kamera ko'radi → **tanaffus o'zi yopiladi**
-- Qaytmasa → kun shu yerda tugaydi
+```
+✅ Записано · 15:20 · Врач
+```
 
-Sabab shunchaki **yorliq**. Qolganini kamera hal qiladi.
+#### 5.7.1 Вернётся или нет — система определяет сама
 
-**Shuning uchun obeddan qaytganda turish shart emas** — shunchaki kirib keladi. Xodimga kuniga **ikki marta** turish kifoya: ertalab va ketishda.
+Здесь есть тонкий момент, и он решается просто: после указания причины система
+**не спрашивает «вернётесь ли вы?»**.
 
-### 5.8 Xona kamerasi
+- Сотрудник вернулся — камера его видит, **перерыв закрывается сам**
+- Не вернулся — день на этом заканчивается
 
-Davomatga **yozmaydi**. Uchta vazifasi:
+То есть причина это просто **метка**, остальное решает камера.
 
-#### 5.8.1 Ish joyida borligi — *ishonchli*
+**Поэтому при возвращении с обеда останавливаться не нужно** — достаточно
+просто войти. Сотруднику нужно останавливаться **два раза в день**: утром и
+перед уходом.
 
-Xona kadrida har bir ish joyi uchun **zona** belgilanadi, admin panelda zona xodimga biriktiriladi.
+### 5.8 Камера в зале
 
-Kim ekanini yuzdan emas, **o'rindiqdan** aniqlaydi. 4 metrdan yuz tanish zaif, "3-stol = Ali" esa xato qilmaydi. Bu devordagi poster muammosini ham yopadi — poster ish joyi zonasida turmaydi va harakatlanmaydi.
+Посещаемость **не записывает**. Три задачи:
 
-#### 5.8.2 Davomatni tekshirish — *ishonchli*
+#### 5.8.1 Присутствие на рабочем месте — *надёжно*
 
-Tizim "Ali ketdi" deb yozsa, lekin xona kamerasi Alini ish joyida ko'rishda davom etsa → yozuv **shubhali** deb belgilanadi va admin ko'radi. Jimgina xato ketmaydi.
+В кадре зала размечаются **зоны** рабочих мест, в админ-панели зона
+закрепляется за сотрудником.
 
-#### 5.8.3 Faoliyat holati — *tajriba bosqichi*
+Кто это, определяется не по лицу, а **по месту**. С четырёх метров
+распознавание лица слабое, а «третий стол = Али» не ошибается. Это заодно
+снимает проблему плакатов на стене — плакат не стоит в зоне рабочего места и
+не двигается.
 
-Tana holati bo'yicha (bosh, yelka, bilak nuqtalari), **telefonni qidirib emas**:
+#### 5.8.2 Проверка посещаемости — *надёжно*
 
-| Holat | Belgilari |
+Если система записала «Али ушёл», а камера в зале продолжает видеть Али на
+рабочем месте, запись помечается как **сомнительная** и показывается
+администратору. Ошибка не проходит незамеченной.
+
+#### 5.8.3 Состояние активности — *экспериментально*
+
+По положению тела (голова, плечи, запястья), а **не по поиску телефона**:
+
+| Состояние | Признаки |
 |---|---|
-| Ishlayapti | Bosh monitorga qaragan, bilaklar stol sathida |
-| Telefonda | Bosh pastga egilgan, bilaklar ko'tarilgan |
-| Joyida yo'q | Zonada odam yo'q |
+| Работает | Голова к монитору, запястья на уровне стола |
+| В телефоне | Голова наклонена вниз, запястья подняты |
+| Нет на месте | В зоне никого |
 
-**Qoidalar:**
+**Правила:**
 
-- `3 daqiqadan` uzun holatlar hisobga olinadi, qisqasi **shovqin deb tashlanadi**
-- Natija **aniq raqam sifatida emas**, uzun oyna bo'yicha yig'ilgan ko'rsatkich sifatida beriladi
-- Ishonch darajasi har bir yozuvda saqlanadi
+- Учитываются состояния дольше `3 минут`, более короткие **отбрасываются как шум**
+- Результат выдаётся **не как точное число**, а как показатель, усреднённый по длинному окну
+- Для каждой записи сохраняется степень уверенности
 
-> **Ochiq ogohlantirish:** telefon aniqlash bir marta sinab ko'rilgan va ishlamagan (sichqoncha telefon deb, devordagi poster odam deb belgilangan). 4 metrdan telefon ~20×40 piksel bo'ladi — bu ishonchli aniqlanmaydi. Shuning uchun yondashuv o'zgartirildi: tana holati o'lchanadi. Buning ishlashi **haqiqiy kameradan 2–3 kunlik yozuv olib tekshirilgandan keyin** tasdiqlanadi. Oldindan kafolat berilmaydi.
+> **Открытое предупреждение:** определение телефона уже пробовали, и оно не
+> заработало (мышь определялась как телефон, плакат на стене — как человек). С
+> четырёх метров телефон занимает ~20×40 пикселей, надёжно его там не найти.
+> Поэтому подход изменён: измеряется положение тела. Будет ли это работать,
+> можно сказать только **после проверки на 2–3 днях записи с настоящей
+> камеры**. Заранее это не гарантируется.
 
-### 5.9 Dashboard
+### 5.9 Дашборд
 
-| Bo'lim | Tarkibi |
+| Раздел | Содержание |
 |---|---|
-| Kun jadvali | Har bir xodim uchun alohida yo'l, soat o'qi, mavjudlik bandlari, "hozir" chizig'i |
-| Kelish/ketish | Vaqt bo'yicha ro'yxat, kechikish ajratilgan |
-| Kamera | Jonli tasvir (MJPEG), tanilgan yuzlar belgilangan |
-| Hozir ishxonada | Xodimlar ro'yxati va kelgan vaqti |
-| Shubhali yozuvlar | Xona kamerasi tasdiqlamagan yozuvlar |
+| График дня | Отдельная полоса на каждого, ось часов, реальные промежутки, линия «сейчас» |
+| Входы и выходы | Список по времени, опоздания выделены |
+| Камера | Живое изображение (MJPEG), распознанные лица отмечены |
+| Сейчас в офисе | Список и время прихода |
+| Опоздания | Сегодняшние крупно, таблица по сотрудникам, каждое опоздание отдельно |
+| Сомнительные записи | Не подтверждённые камерой зала |
 
-### 5.10 Hisobotlar
+### 5.10 Отчёты
 
-| Hisobot | Tarkibi |
+| Отчёт | Содержание |
 |---|---|
-| Kunlik | Kelish/ketish vaqti, jami soat, tanaffuslar, kechikish |
-| Oylik | Xodim bo'yicha jami soat, kechikish soni, erta ketish soni |
-| Kechikishlar | Saralangan ro'yxat, sabablari bilan |
-| Sababsiz erta ketishlar | Tugma bosilmagan yoki "Ha" bosilgan holatlar |
-| Eksport | CSV / Excel |
+| Ежедневный | Время прихода и ухода, всего часов, перерывы, опоздание |
+| Месячный | По сотрудникам: часы, число опозданий, ранних уходов |
+| Опоздания | Каждое отдельно и суммы по сотрудникам |
+| Ранние уходы без причины | Кнопка не нажата или выбрано «Да» |
+| Экспорт | CSV для Excel |
 
-### 5.11 Admin panel
+### 5.11 Админ-панель
 
-| Imkoniyat | Holati |
+| Возможность | Статус |
 |---|---|
-| Xodim qo'shish + yuz skanerlash | Bajarilgan |
-| Ism/familiya/lavozim tahrirlash | Bajarilgan |
-| Qayta skanerlash (namuna qo'shish) | Bajarilgan |
-| Xodimni o'chirish | Bajarilgan |
-| Takroriy yuz nazorati | Bajarilgan |
-| **Telegram kodi berish** | Qilinishi kerak |
-| **Bog'lanishni uzish** | Qilinishi kerak |
-| **Davomatni qo'lda tuzatish** | Qilinishi kerak |
-| **Ish joyi zonalarini belgilash** | Qilinishi kerak |
+| Добавление сотрудника и сканирование лица | Выполнено |
+| Изменение имени, фамилии, должности | Выполнено |
+| Повторное сканирование (добавление образцов) | Выполнено |
+| Удаление сотрудника | Выполнено |
+| Контроль дублирования лица | Выполнено |
+| Выдача кода Telegram | Выполнено |
+| Снятие привязки Telegram | Выполнено |
+| Ручное исправление посещаемости | Выполнено |
+| Разметка зон рабочих мест | Предстоит |
 
-**Qo'lda tuzatish zarur** — xodim esdan chiqaradi, kamera xato qiladi, elektr o'chadi. Har bir tuzatish **kim va qachon** qilgani bilan saqlanadi.
+**Ручное исправление обязательно** — сотрудник забудет, камера ошибётся,
+пропадёт электричество. Каждое исправление сохраняется с пометкой `manual`.
 
 ---
 
-## 6. Ma'lumotlar bazasi
+## 6. База данных
 
-SQLite, WAL rejimida (bir necha jarayon bir vaqtda yozadi).
+SQLite в режиме WAL (несколько процессов пишут одновременно).
 
 ```sql
--- Xodimlar
+-- Сотрудники
 employees (
   id            INTEGER PRIMARY KEY,
   first_name    TEXT NOT NULL,
@@ -442,9 +483,9 @@ employees (
   position      TEXT DEFAULT '',
   created_at    TEXT NOT NULL
 )
--- UNIQUE(name) yo'q: bir xil ismli ikki xodim bo'lishi mumkin
+-- UNIQUE(name) нет: двое сотрудников могут быть полными тёзками
 
--- Yuz namunalari
+-- Образцы лиц
 face_embeddings (
   id            INTEGER PRIMARY KEY,
   employee_id   INTEGER NOT NULL,
@@ -453,23 +494,24 @@ face_embeddings (
   created_at    TEXT NOT NULL
 )
 
--- Davomat hodisalari
+-- События посещаемости
 attendance_events (
   id            INTEGER PRIMARY KEY,
   employee_id   INTEGER NOT NULL,
-  ts            TEXT NOT NULL,      -- kamera ko'rgan payt
+  ts            TEXT NOT NULL,      -- когда камера увидела
+  local_day     TEXT NOT NULL,      -- офисная дата
   event         TEXT NOT NULL,      -- 'keldi' | 'ketdi'
   source        TEXT NOT NULL,      -- 'deliberate' | 'first_sighting'
                                     -- | 'auto_close' | 'manual'
   confirmed     TEXT,               -- NULL | 'ha' | 'yoq' | 'sabab'
-  reason        TEXT,               -- 'obed' | 'shifokor' | ... | matn
+  reason        TEXT,
   confirmed_at  TEXT,
   cancelled     INTEGER DEFAULT 0,
-  suspicious    INTEGER DEFAULT 0,  -- xona kamerasi tasdiqlamadi
+  suspicious    INTEGER DEFAULT 0,  -- камера зала не подтвердила
   note          TEXT
 )
 
--- Ko'rinishlar (jadval chizish uchun, har 15 sekundda)
+-- Появления (для графика, каждые 15 секунд)
 presence_samples (
   id            INTEGER PRIMARY KEY,
   employee_id   INTEGER NOT NULL,
@@ -477,23 +519,49 @@ presence_samples (
   camera        TEXT NOT NULL       -- 'entrance' | 'room'
 )
 
--- Telegram bog'lanishlari
+-- Проходы через дверь. Намеренно без employee_id: считаются все,
+-- и большинство из них в системе не зарегистрированы.
+crossings (
+  id            INTEGER PRIMARY KEY,
+  ts            TEXT NOT NULL,
+  local_day     TEXT NOT NULL,
+  direction     TEXT NOT NULL,      -- 'kirdi' | 'chiqdi'
+  camera        TEXT NOT NULL
+)
+
+-- Привязки Telegram
 telegram_links (
   employee_id   INTEGER PRIMARY KEY,
   telegram_id   INTEGER UNIQUE NOT NULL,
+  username      TEXT,
   linked_at     TEXT NOT NULL
 )
 
--- Bog'lanish kodlari
+-- Коды привязки
 pairing_codes (
   code          TEXT PRIMARY KEY,
   employee_id   INTEGER NOT NULL,
   created_at    TEXT NOT NULL,
   expires_at    TEXT NOT NULL,
-  used_at       TEXT
+  used_at       TEXT,
+  used_by       INTEGER
 )
 
--- Ish joyi zonalari
+-- Очередь сообщений
+telegram_outbox (
+  id            INTEGER PRIMARY KEY,
+  employee_id   INTEGER,
+  telegram_id   INTEGER,
+  event_id      INTEGER,
+  kind          TEXT NOT NULL,
+  body          TEXT NOT NULL,
+  buttons       TEXT,
+  created_at    TEXT NOT NULL,
+  sent_at       TEXT,
+  error         TEXT
+)
+
+-- Зоны рабочих мест
 desk_zones (
   id            INTEGER PRIMARY KEY,
   employee_id   INTEGER,
@@ -501,219 +569,233 @@ desk_zones (
   label         TEXT
 )
 
--- Faoliyat holatlari
+-- Состояния активности
 activity_states (
   id            INTEGER PRIMARY KEY,
   employee_id   INTEGER NOT NULL,
   started_at    TEXT NOT NULL,
   ended_at      TEXT,
-  state         TEXT NOT NULL,      -- 'ish' | 'telefon' | 'yoq'
+  state         TEXT NOT NULL,      -- 'работа' | 'телефон' | 'нет'
   confidence    REAL
 )
 ```
 
 ---
 
-## 7. Tanish parametrlari
+## 7. Параметры распознавания
 
-| Parametr | Qiymat | Izoh |
+| Параметр | Значение | Примечание |
 |---|---|---|
-| Model | InsightFace `buffalo_l` | SCRFD aniqlash + ArcFace 512-o'lcham |
-| Aniqlash o'lchami | 640 × 640 | |
-| Moslik chegarasi | `0.40` kosinus | Bir xil odam `> 0.5`, boshqa odam `< 0.3` |
-| Takroriylik chegarasi | `0.93` | Namuna qo'shishda |
-| Minimal `det_score` | `0.60` | Xira kadr saqlanmaydi |
-| Minimal yuz kengligi | `70 px` (skanerlash) / `180 px` (davomat) | |
-| Tanish tezligi | 2/sek (davomat), 1–2/sek (xona) | |
-| GPU | CUDAExecutionProvider | 49 ms/kadr o'lchangan |
+| Модель | InsightFace `buffalo_l` | Детектор SCRFD + эмбеддинги ArcFace (512) |
+| Размер детекции | 640 × 640 | |
+| Порог совпадения | `0.40` косинус | Один человек `> 0.5`, разные `< 0.3` |
+| Порог дублирования | `0.93` | При добавлении образца |
+| Минимальный `det_score` | `0.60` | Размытый кадр не сохраняется |
+| Минимальная ширина лица | `70 px` (сканирование) / `180 px` (посещаемость) | |
+| Частота распознавания | 2/сек (посещаемость), 1–2/сек (зал) | |
+| GPU | CUDAExecutionProvider | Измерено 49 мс/кадр |
 
-> `onnxruntime` (CPU) va `onnxruntime-gpu` birga o'rnatilmasligi kerak — CPU versiyasi GPU'ni berkitadi.
+> `onnxruntime` (CPU) и `onnxruntime-gpu` не должны стоять вместе — версия для
+> CPU перекрывает GPU, и распознавание молча переходит на процессор.
+
+**Проверено на практике:** два разных сотрудника дают сходство `0.112` при
+пороге `0.40`, а худшее сходство одного и того же человека — `0.553`. Запас
+между ними `0.441`, то есть перепутать сотрудников система не может.
 
 ---
 
-## 8. Xavfsizlik va ruxsatlar
+## 8. Безопасность и права доступа
 
-### 8.1 Ikki darajali himoya
+### 8.1 Два уровня
 
-| Daraja | Nimaga ruxsat | Himoya |
+| Уровень | Что разрешает | Защита |
 |---|---|---|
-| **Ko'ruvchi** | Dashboard, hisobotlar | HTTP Basic parol |
-| **Boshqaruvchi** | Xodim qo'shish/o'chirish, kod berish, tuzatish | **Alohida parol** + sessiya cookie (8 soat) |
+| **Просмотр** | Дашборд, отчёты | Пароль HTTP Basic |
+| **Управление** | Добавление и удаление сотрудников, выдача кодов, исправления | **Отдельный пароль** + cookie сессии (8 часов) |
 
-Boshqaruv paroli ko'ruvchi parolidan **alohida**. Dashboardni ko'rish huquqi xodim qo'shish huquqini bermaydi.
+Пароль управления **отдельный** от пароля просмотра. Право видеть дашборд не
+даёт права добавлять сотрудников.
 
-### 8.2 Qoidalar
+### 8.2 Правила
 
-- Parollar va tokenlar hech qachon ekranga chiqarilmaydi va logga yozilmaydi
-- Telegram bot tokeni muhit o'zgaruvchisida (`.env`), kodda emas
-- **Kompaniya boti shaxsiy botdan alohida** — alohida token, alohida jarayon
-- Barcha boshqaruv amallari jurnalga yoziladi: kim, qachon, nima
-- Tizim faqat lokal tarmoqda ishlaydi, internetdan ochiq emas
+- Пароли и токены никогда не выводятся на экран и не пишутся в лог
+- Токен бота Telegram — в переменной окружения (`.env`), не в коде
+- **Бот компании отделён от личного бота** — отдельный токен, отдельный процесс
+- Все действия управления записываются в журнал: кто, когда, что
+- Система работает только в локальной сети, из интернета недоступна
 
-### 8.3 Maxfiylik
+### 8.3 Конфиденциальность
 
-| Talab | Yechim |
+| Требование | Решение |
 |---|---|
-| Xodim roziligi | Yozma rozilik olinadi (olingan) |
-| Xodim o'z ma'lumotini ko'rishi | `/bugun`, `/hafta` buyruqlari |
-| Video arxiv | Saqlanmaydi. Faqat davomat yozuvlari va yuz namunalari |
-| Yuz namunalari | Embedding — matematik tavsif, rasmga qaytarilmaydi |
-| Saqlash muddati | **Kelishilishi kerak** (tavsiya: 90 kun, keyin avtomatik o'chadi) |
-| Faoliyat ma'lumoti | Rahbariyatga umumiy ko'rsatkich, xodimga o'z ma'lumoti |
+| Согласие сотрудников | Получено письменно |
+| Доступ сотрудника к своим данным | Команды `/bugun`, `/hafta`, `/kechikish` |
+| Видеоархив | Не хранится. Только записи посещаемости и образцы лиц |
+| Образцы лиц | Эмбеддинг — математическое описание, в изображение не превращается |
+| Срок хранения | **Требует согласования** (рекомендация: 90 дней, затем автоматическое удаление) |
+| Данные об активности | Руководству — сводный показатель, сотруднику — его собственные данные |
 
 ---
 
-## 9. Nofunksional talablar
+## 9. Нефункциональные требования
 
-| Talab | Qiymat |
+| Требование | Значение |
 |---|---|
-| Kamera tasviri | Realtime, kechikish `< 0.5 sek` |
-| Davomat yozilishi | Turish tugagandan `< 2 sek` keyin |
-| Telegram xabari | `< 10 sek` ichida yetib borishi |
-| Ishlash muddati | 24/7, avtomatik qayta ishga tushish (`systemd`) |
-| Elektr o'chganda | Yoqilgandan keyin o'zi ishga tushadi, tugallanmagan sessiyalar yopiladi |
-| Baza | Bir vaqtda bir necha jarayon yozishi (WAL + `busy_timeout`) |
-| Zaxira nusxa | Kunlik avtomatik baza nusxasi |
+| Изображение камеры | В реальном времени, задержка `< 0.5 сек` |
+| Запись посещаемости | `< 2 сек` после остановки |
+| Сообщение Telegram | Доставка за `< 10 сек` |
+| Режим работы | 24/7, автоматический перезапуск (`systemd`) |
+| После отключения питания | Поднимается сама, незакрытые дни закрываются |
+| База | Одновременная запись несколькими процессами (WAL + `busy_timeout`) |
+| Резервная копия | Ежедневная автоматическая копия базы |
 
 ---
 
-## 10. Bosqichlar
+## 10. Этапы
 
-### 1-bosqich — Davomat mantig'i *(Telegram'siz)*
+### Этап 1 — Логика посещаемости *(без Telegram)*
 
-- Ataylab turishni aniqlash
-- Keldi / ketdi yozish
-- Vaqt qoidalari (09:00 / 18:00)
-- Zaxira yo'llar
-- Dashboardda ko'rinishi
+- Определение осознанной остановки
+- Запись прихода и ухода
+- Правила времени (09:00 / 18:00)
+- Запасные пути
+- Отображение на дашборде
 
-**Qabul mezoni:**
+**Критерии приёмки:**
 
-| Sinov | Talab |
+| Проверка | Требование |
 |---|---|
-| Kelib 3 sekund turish | 20 urinishdan `≥ 19` yozilishi |
-| Yonidan o'tib ketish | 50 o'tishdan `0` yozilishi |
-| Boshqa odamni o'zi deb yozishi | 100 urinishdan `0` |
+| Подойти и простоять 3 секунды | из 20 попыток `≥ 19` записей |
+| Пройти мимо | из 50 проходов `0` записей |
+| Записать одного сотрудника вместо другого | из 100 попыток `0` |
 
-### 2-bosqich — Telegram
+### Этап 2 — Telegram
 
-- Alohida bot
-- Bog'lanish kodi (admin panel + bot)
-- Keldi / ketdi xabarlari
-- Tugmalar: Ha / Yo'q / Sabab
-- Sabab ro'yxati
-- `/bugun`, `/hafta`
+- Отдельный бот
+- Код привязки (админ-панель и бот)
+- Сообщения о приходе и уходе
+- Кнопки: Да / Нет / Причина
+- Список причин
+- `/bugun`, `/hafta`, `/kechikish`
 
-**Qabul mezoni:** 3 xodim bog'lanadi, har biri xabar oladi, tugma bosadi, natija bazada to'g'ri ko'rinadi.
+**Критерии приёмки:** три сотрудника подключаются, каждый получает сообщение,
+нажимает кнопку, результат корректно отражается в базе.
 
-### 3-bosqich — Haqiqiy kameralar
+### Этап 3 — Настоящие камеры
 
-- RTSP ulanish
-- Kirish kamerasini o'rnatish va sozlash
-- **Barcha xodimlarni haqiqiy kameradan qayta skanerlash**
-- Masofa va sekund parametrlarini sozlash
+- Подключение по RTSP
+- Установка и настройка камеры входа
+- **Повторное сканирование всех сотрудников с настоящей камеры**
+- Настройка расстояния и длительности остановки
 
-> Qayta skanerlash aniqlikni eng ko'p oshiradigan qadam. Laptop kamerasidan 50 sm dan olingan namuna, kirish kamerasidan 1.5 m dan ko'rinadigan yuzga to'liq mos kelmaydi.
+> Повторное сканирование — шаг, который сильнее всего повышает точность.
+> Образец, снятый с ноутбука с расстояния 50 см, не совпадает с лицом, которое
+> камера входа видит с полутора метров.
 
-### 4-bosqich — Xona kamerasi
+### Этап 4 — Камера в зале
 
-- Ish joyi zonalari
-- "Joyida bor / yo'q"
-- Davomatni tekshirish
+- Зоны рабочих мест
+- «На месте / нет на месте»
+- Проверка посещаемости
 
-### 5-bosqich — Faoliyat tahlili *(tajriba)*
+### Этап 5 — Анализ активности *(эксперимент)*
 
-- 2–3 kunlik yozuv yig'ish
-- Tana holati modelini shu yozuvda tekshirish
-- **Natijaga qarab qaror:** ishlatiladimi yoki yo'q
+- Сбор 2–3 дней записи
+- Проверка модели положения тела на этой записи
+- **Решение по результату:** использовать или нет
 
 ---
 
-## 11. Hal qilinishi kerak bo'lgan savollar
+## 11. Вопросы, требующие решения
 
-Loyihani boshlashdan oldin kompaniyadan aniqlash kerak:
+До начала работ нужно уточнить у компании:
 
-| № | Savol | Nega muhim |
+| № | Вопрос | Почему важно |
 |---|---|---|
-| 1 | Rasmiy ish vaqti `09:00–18:00` to'g'rimi? | Kechikish shunga qarab hisoblanadi |
-| 2 | Smenalar bormi? | Smena bo'lsa vaqt qoidalari xodimga bog'lanadi |
-| 3 | Shanba ish kunimi? | Hisobotda ish kunlari hisobi |
-| 4 | Kamera modeli va RTSP manzili | Ulanish uchun |
-| 5 | Server qayerda turadi? | Tarmoq va o'rnatish |
-| 6 | Kirish kamerasi **1.5–1.7 m** ga o'rnatiladimi? | Tanish aniqligi hal qiluvchi darajada bog'liq |
-| 7 | Ma'lumot qancha saqlanadi? | Tavsiya: 90 kun |
-| 8 | Kim boshqaruv paroliga ega bo'ladi? | Xodim qo'shish huquqi |
-| 9 | Xonada nechta ish joyi va joylashuvi o'zgaradimi? | Zonalar |
-| 10 | Faoliyat (telefon) hisoboti **qat'iy talabmi**? | Taxminiy ko'rsatkich bo'lishiga rozilik kerak |
-| 11 | Telegram'i yo'q xodim bormi? | Zaxira yo'l kerak bo'ladi |
+| 1 | Рабочее время `09:00–18:00` верно? | От этого считается опоздание |
+| 2 | Есть ли смены? | При сменах правила времени привязываются к сотруднику |
+| 3 | Суббота рабочая? | Учёт рабочих дней в отчёте |
+| 4 | Модель камеры и RTSP-адрес | Для подключения |
+| 5 | Где стоит сервер? | Сеть и монтаж |
+| 6 | Камера входа будет на высоте **1.5–1.7 м**? | От этого решающим образом зависит точность |
+| 7 | Сколько хранить данные? | Рекомендация: 90 дней |
+| 8 | У кого будет пароль управления? | Право добавлять сотрудников |
+| 9 | Сколько рабочих мест в зале и меняется ли их расположение? | Разметка зон |
+| 10 | Отчёт по активности (телефон) — **твёрдое требование**? | Нужно согласие на приблизительный показатель |
+| 11 | Есть ли сотрудники без Telegram? | Понадобится запасной путь |
 
 ---
 
-## 12. Hozirgi holat
+## 12. Текущее состояние
 
-### Bajarilgan
+### Выполнено
 
-**Yuz tanish**
-- InsightFace + GPU yadrosi (49 ms/kadr)
-- Burchak bo'yicha ro'yxatga olish (8 namuna, 5 burchak) + sifat nazorati
-- Takroriy yuz nazorati
+**Распознавание лиц**
+- Ядро InsightFace + GPU (49 мс/кадр)
+- Регистрация по ракурсам (8 образцов, 5 ракурсов) с контролем качества
+- Контроль дублирования лица
 
-**Davomat (1-bosqich)**
-- Ataylab turishni aniqlash: yaqin + qimirlamaydi + 3 sekund + ovoz berish
-- Chegara kadr kengligiga nisbatan (kameralar orasida ko'chadi) + piksel pastki chegarasi
-- Keldi / ketdi qarori, takroriy turish nazorati
-- Vaqt qoidalari: kechikish, erta ketish, sabab kerakligi (soat + daqiqa)
-- Zaxira yo'llar: turmagan odam uchun `first_sighting`, ko'rinmay qolgan kun uchun `auto_close`
-- 31 ta avtomatik test
+**Посещаемость (этап 1)**
+- Определение осознанной остановки: близко + неподвижно + 3 секунды + голосование
+- Порог задан долей ширины кадра (переносится между камерами) плюс нижний предел в пикселях
+- Решение приход/уход, контроль повторной остановки
+- Правила времени: опоздание, ранний уход, необходимость причины (часы и минуты)
+- Запасные пути: `first_sighting` для не остановившегося, `auto_close` для пропавшего
 
-**Interfeys va infratuzilma**
-- Admin panel: qo'shish, tahrirlash, qayta skanerlash, o'chirish
-- Ikki darajali parol himoyasi
-- Dashboard: kun jadvali, jonli kamera, kelish/ketish, kun hisobi
-- Realtime kamera (MJPEG, atomik yozish), ekranda piksel o'lchovi
-- Ko'p jarayonli baza (WAL)
-- `data/config.json` — barcha qiymatlar sozlanadigan
-- `scripts/today.py` — testni qaytadan boshlash
+**Telegram (этап 2)**
+- Код привязки: 8 символов, одноразовый, 24 часа, с ограничением попыток
+- Сообщения о приходе и уходе
+- Кнопки `Да / Нет / Причина` и список причин при раннем уходе
+- `/bugun`, `/hafta`, `/kechikish` — сотрудник видит свои данные
+- Очередь (`telegram_outbox`): сообщения записываются, даже когда отправка выключена
+- Два отдельных переключателя: работа бота и отправка сообщений
 
-**Telegram (2-bosqich)**
-- Bog'lanish kodi: 8 belgi, bir martalik, 24 soat, urinish cheklovi bilan
-- Keldi / ketdi xabarlari (soat + daqiqa bilan)
-- Erta ketishda `Ha / Yo'q / Sabab` tugmalari va sabab ro'yxati
-- `/bugun`, `/hafta` — xodim o'z ma'lumotini ko'radi
-- Navbat (`telegram_outbox`): xabarlar yuborilmasa ham yoziladi va ko'rinadi
-- Ikki alohida kalit: bot ishlashi va xabar yuborish
+**Ручное исправление (этап 2)**
+- Добавление записи, исправление времени и типа, отмена, возврат
+- Исправленная запись помечается `manual`, отменённая не удаляется
 
-**Qo'lda tuzatish (2-bosqich)**
-- Yozuv qo'shish, vaqtini/turini tuzatish, bekor qilish
-- Tuzatilgan yozuv `manual` deb belgilanadi, bekor qilingani o'chirilmaydi
+**Отчёты (этап 2)**
+- Месячный: часы, дни с опозданием, минуты опоздания, ранние уходы,
+  уходы без причины, записи, исправленные вручную
+- Опоздания: каждое отдельно и суммы по сотрудникам
+- Экспорт CSV (с BOM для Excel)
 
-**Hisobotlar (2-bosqich)**
-- Oylik: jami soat, kechikkan kun, kechikish daqiqasi, erta ketish,
-  sababsiz erta ketish, qo'lda tuzatilgan yozuvlar
-- CSV eksport (Excel uchun BOM bilan)
+**Подсчёт проходов**
+- Отдельный модуль, отдельная таблица, отдельная страница `/counter`
+- Отслеживание людей между кадрами и пересечение линии с направлением
+- Выключается одной настройкой, сбой не влияет на посещаемость
 
-Jami **75 ta avtomatik test**, hammasi o'tadi.
+**Интерфейс и инфраструктура**
+- Админ-панель: добавление, изменение, пересканирование, удаление
+- Двухуровневая парольная защита
+- Дашборд: график дня, живая камера, входы и выходы, опоздания, итоги
+- Камера в реальном времени (MJPEG, атомарная запись), измерение в пикселях на экране
+- Многопроцессная база (WAL)
+- `data/config.json` — все значения настраиваются
+- Ежедневная резервная копия базы
+- `./emon` — запуск, остановка, состояние, логи
 
-### Qilinishi kerak
+Всего **96 автоматических тестов**, все проходят.
 
-| № | Ish | Bosqich |
+### Предстоит
+
+| № | Работа | Этап |
 |---|---|---|
-| 1 | Haqiqiy kameraga ulanish (RTSP), joyida sozlash | 3 |
-| 2 | Xodimlarni haqiqiy kameradan qayta skanerlash | 3 |
-| 3 | Serverda `systemd` xizmati + kunlik zaxira nusxa | 3 |
-| 4 | Xona kamerasi: ish joyi zonalari, "joyida bor/yo'q" | 4 |
-| 5 | Davomatni xona kamerasi bilan tekshirish (shubhali yozuvlar) | 4 |
-| 6 | Faoliyat tahlili (tana holati) — tajriba | 5 |
+| 1 | Подключение настоящих камер (RTSP), настройка на месте | 3 |
+| 2 | Повторное сканирование сотрудников с настоящей камеры | 3 |
+| 3 | Служба `systemd` на сервере | 3 |
+| 4 | Камера в зале: зоны рабочих мест, «на месте / нет» | 4 |
+| 5 | Проверка посещаемости камерой зала (сомнительные записи) | 4 |
+| 6 | Анализ активности (положение тела) — эксперимент | 5 |
+| 7 | Автоматическое удаление данных по сроку хранения | по согласованию |
+| 8 | Оповещение о сбое камеры | рекомендуется |
 
-**Dasturiy ishning kamerasiz qilinadigan qismi tugadi.** Qolgan hammasi
-kameralar o'rnatilishini kutadi.
-
-> `systemd` xizmati yozilgan va sinalgan (qulasa ko'tariladi, qayta yonsa
-> ishga tushadi), lekin hozircha **o'chirilgan** — lokal test rejimida
-> qo'lda ishga tushiriladi. Serverga o'tganda qaytariladi.
+**Часть работ, не требующая камер, выполнена.** Остальное ждёт установки
+оборудования.
 
 ---
 
-## 13. Eslatma
+## 13. Примечание
 
-Telegram xabarlari **o'chirilgan holatda** ishlab chiqiladi va buyurtmachining aniq ruxsatidan keyin yoqiladi.
+Сообщения Telegram разрабатываются **в выключенном состоянии** и включаются
+только по явному распоряжению заказчика.

@@ -47,11 +47,11 @@ start_one() {
   local name=$1 pattern=$2 log=$3
   shift 3
   if is_up "$pattern"; then
-    echo "  $name — allaqachon ishlayapti"
+    echo "  $name — уже работает"
     return
   fi
   nohup "$@" >> "$log" 2>&1 &
-  echo "  $name — ishga tushirildi"
+  echo "  $name — запущено"
 }
 
 cmd_start() {
@@ -62,60 +62,60 @@ cmd_start() {
     $PY scripts/backup.py 2>&1 | sed "s/^/  /"
   fi
 
-  echo "Ishga tushirilayapti:"
+  echo "Запуск:"
   start_one "API      " "$API_PATTERN" data/api.log \
             $PY -m uvicorn backend.api:app --host 127.0.0.1 --port $PORT
-  start_one "Kamera   " "$CAM_PATTERN" data/recognizer.log \
+  start_one "Камера   " "$CAM_PATTERN" data/recognizer.log \
             $PY -u backend/recognizer.py
   if telegram_on; then
     start_one "Telegram " "$BOT_PATTERN" data/bot.log $PY -u backend/bot.py
   else
-    echo "  Telegram  — o'chirilgan (data/config.json: telegram_enabled)"
+    echo "  Telegram  — выключен (data/config.json: telegram_enabled)"
   fi
 
   # The camera needs ~20s to load the recognition model before it opens the
   # device, so a status check straight away would always look like a failure.
   echo
-  echo "Model yuklanmoqda, 25 sekund…"
+  echo "Загрузка модели, 25 секунд…"
   sleep 25
   cmd_status
 }
 
 cmd_stop() {
-  echo "To'xtatilayapti:"
-  for entry in "Telegram :$BOT_PATTERN" "Kamera   :$CAM_PATTERN" "API      :$API_PATTERN"; do
+  echo "Остановка:"
+  for entry in "Telegram :$BOT_PATTERN" "Камера   :$CAM_PATTERN" "API      :$API_PATTERN"; do
     name=${entry%%:*}
     pattern=${entry#*:}
     if is_up "$pattern"; then
       pkill -f "$pattern" 2>/dev/null
       wait_gone "$pattern"
-      echo "  $name — to'xtatildi"
+      echo "  $name — остановлено"
     else
-      echo "  $name — ishlamayotgan edi"
+      echo "  $name — не работало"
     fi
   done
   echo
-  echo "Ochiq kunlar keyingi ishga tushirishda, haqiqiy oxirgi ko'rinish"
-  echo "vaqti bilan yopiladi — hech kim 'ketdi' deb belgilanmadi."
+  echo "Открытые дни будут закрыты при следующем запуске, по реальному"
+  echo "времени последнего появления — никто не отмечен как ушедший."
 }
 
 cmd_status() {
-  echo "Holat:"
-  for entry in "API      :$API_PATTERN" "Kamera   :$CAM_PATTERN" "Telegram :$BOT_PATTERN"; do
+  echo "Состояние:"
+  for entry in "API      :$API_PATTERN" "Камера   :$CAM_PATTERN" "Telegram :$BOT_PATTERN"; do
     name=${entry%%:*}
     pattern=${entry#*:}
     pid=$(pids_for "$pattern" | head -1)
     if [ -n "$pid" ]; then
-      echo "  $name ishlayapti (pid $pid)"
+      echo "  $name работает (pid $pid)"
     else
-      echo "  $name to'xtagan"
+      echo "  $name остановлено"
     fi
   done
 
   if is_up "$API_PATTERN" && [ -f data/admin_pass.txt ]; then
     echo
-    echo "  Dashboard → http://127.0.0.1:$PORT"
-    echo "  Admin     → http://127.0.0.1:$PORT/admin"
+    echo "  Дашборд → http://127.0.0.1:$PORT"
+    echo "  Админка → http://127.0.0.1:$PORT/admin"
     local state
     state=$(curl -s --max-time 5 -u "admin:$(cat data/admin_pass.txt)" \
             "http://127.0.0.1:$PORT/api/camera/status" 2>/dev/null \
@@ -123,9 +123,9 @@ cmd_status() {
 import json,sys
 try: s = json.load(sys.stdin)
 except Exception: sys.exit()
-print(f\"  Kamera: {'ulangan' if s.get('online') else 'javob bermayapti'}\"
-      f\"  yuz {s.get('max_face_width', 0)}px\"
-      f\"  (turish uchun kerak {s.get('stand_min_face_width', 0)}px)\")
+print(f\"  Камера: {'подключена' if s.get('online') else 'не отвечает'}\"
+      f\"  лицо {s.get('max_face_width', 0)}px\"
+      f\"  (для остановки нужно {s.get('stand_min_face_width', 0)}px)\")
 " 2>/dev/null)
     [ -n "$state" ] && echo "$state"
   fi
@@ -147,6 +147,6 @@ case "${1:-}" in
   status)  cmd_status ;;
   logs)    cmd_logs "${2:-camera}" ;;
   *)
-    echo "Ishlatilishi: ./emon {start|stop|restart|status|logs [camera|api|bot]}"
+    echo "Использование: ./emon {start|stop|restart|status|logs [camera|api|bot]}"
     exit 1 ;;
 esac

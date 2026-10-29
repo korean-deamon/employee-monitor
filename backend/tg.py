@@ -23,13 +23,16 @@ CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
 CODE_LENGTH = 8
 
 REASONS = [
-    ("obed", "Obed"),
-    ("shifokor", "Shifokor"),
-    ("shaxsiy", "Shaxsiy ish"),
-    ("topshiriq", "Ish topshirig'i"),
-    ("boshqa", "Boshqa"),
+    ("obed", "Обед"),
+    ("shifokor", "Врач"),
+    ("shaxsiy", "Личное дело"),
+    ("topshiriq", "Рабочее поручение"),
+    ("boshqa", "Другое"),
 ]
 REASON_LABELS = dict(REASONS)
+
+# Display wording only — the database keeps keldi/ketdi as the event names.
+EVENT_WORDS = {"keldi": "вошёл", "ketdi": "вышел"}
 
 
 # ── Pairing ───────────────────────────────────────────────────────────────────
@@ -232,29 +235,29 @@ def _hhmm(cfg, ts) -> str:
 
 
 def arrival_message(cfg, con, employee_id, event_id, ts, grade) -> int:
-    lines = [f"✅ Keldingiz · {_hhmm(cfg, ts)}"]
+    lines = [f"✅ Вы пришли · {_hhmm(cfg, ts)}"]
     if grade.get("late_minutes"):
-        lines.append(f"{attendance.human_minutes(grade['late_minutes'])} kech qoldingiz")
+        lines.append(f"Опоздание {attendance.human_minutes(grade['late_minutes'])}")
     elif grade.get("early_minutes"):
-        lines.append(f"{attendance.human_minutes(grade['early_minutes'])} erta keldingiz")
+        lines.append(f"Раньше на {attendance.human_minutes(grade['early_minutes'])}")
     else:
-        lines.append("O'z vaqtida")
+        lines.append("Вовремя")
     return queue(con, "keldi", employee_id, "\n".join(lines), event_id=event_id)
 
 
 def departure_message(cfg, con, employee_id, event_id, ts, grade, summary) -> int:
     """Departure after the day is over: report the day, ask nothing."""
-    lines = [f"👋 Ketdingiz · {_hhmm(cfg, ts)}"]
+    lines = [f"👋 Вы ушли · {_hhmm(cfg, ts)}"]
     if summary and summary.get("arrived"):
-        lines.append(f"Bugun: {_hhmm(cfg, summary['arrived'])} – {_hhmm(cfg, ts)}")
+        lines.append(f"Сегодня: {_hhmm(cfg, summary['arrived'])} – {_hhmm(cfg, ts)}")
     if summary and summary.get("worked_seconds"):
         hours, rest = divmod(summary["worked_seconds"], 3600)
-        lines.append(f"Jami: {hours} soat {rest // 60} daqiqa")
+        lines.append(f"Итого: {hours} ч {rest // 60} мин")
     breaks = sum(b["seconds"] or 0 for b in (summary or {}).get("breaks", []))
     if breaks:
-        lines.append(f"Tanaffus: {attendance.human_minutes(breaks // 60)}")
+        lines.append(f"Перерыв: {attendance.human_minutes(breaks // 60)}")
     if grade.get("overtime_minutes"):
-        lines.append(f"Qo'shimcha: {attendance.human_minutes(grade['overtime_minutes'])}")
+        lines.append(f"Переработка: {attendance.human_minutes(grade['overtime_minutes'])}")
     return queue(con, "ketdi", employee_id, "\n".join(lines), event_id=event_id)
 
 
@@ -264,11 +267,11 @@ def early_departure_message(cfg, con, employee_id, event_id, ts, grade) -> int:
     The record already stands; the buttons only let the employee correct or
     explain it, so an unanswered message still leaves a usable record.
     """
-    body = (f"🚪 Ketdingizmi? · {_hhmm(cfg, ts)}\n"
-            f"Ish kuni tugashiga {attendance.human_minutes(grade['early_leave_minutes'])} bor.")
-    buttons = [[{"text": "Ha", "data": f"leave:ha:{event_id}"},
-                {"text": "Yo'q", "data": f"leave:yoq:{event_id}"},
-                {"text": "Sabab", "data": f"leave:sabab:{event_id}"}]]
+    body = (f"🚪 Вы ушли? · {_hhmm(cfg, ts)}\n"
+            f"До конца рабочего дня {attendance.human_minutes(grade['early_leave_minutes'])}.")
+    buttons = [[{"text": "Да", "data": f"leave:ha:{event_id}"},
+                {"text": "Нет", "data": f"leave:yoq:{event_id}"},
+                {"text": "Причина", "data": f"leave:sabab:{event_id}"}]]
     return queue(con, "ketdi_savol", employee_id, body, buttons=buttons, event_id=event_id)
 
 
@@ -282,14 +285,14 @@ def reason_prompt(event_id) -> dict:
             row = []
     if row:
         rows.append(row)
-    return {"body": "Sababi?", "buttons": rows}
+    return {"body": "Причина?", "buttons": rows}
 
 
 def auto_close_message(cfg, con, employee_id, event_id, ts) -> int:
-    body = (f"🌙 Ketganingizni belgilamadingiz.\n"
-            f"Oxirgi ko'rinish bo'yicha {_hhmm(cfg, ts)} deb yozdik.")
-    buttons = [[{"text": "To'g'ri", "data": f"close:ok:{event_id}"},
-                {"text": "Tuzatish", "data": f"close:fix:{event_id}"}]]
+    body = (f"🌙 Вы не отметили уход.\n"
+            f"Записали {_hhmm(cfg, ts)} — по последнему появлению.")
+    buttons = [[{"text": "Верно", "data": f"close:ok:{event_id}"},
+                {"text": "Исправить", "data": f"close:fix:{event_id}"}]]
     return queue(con, "auto_close", employee_id, body, buttons=buttons, event_id=event_id)
 
 
@@ -301,7 +304,7 @@ ALREADY_GAP_SECONDS = 1800
 
 def already_message(cfg, con, employee_id, ts):
     return queue_once(con, "allaqachon", employee_id,
-                      f"ℹ️ Allaqachon yozilgan · {_hhmm(cfg, ts)}",
+                      f"ℹ️ Уже записано · {_hhmm(cfg, ts)}",
                       ALREADY_GAP_SECONDS)
 
 
@@ -309,7 +312,7 @@ def day_report(cfg, con, employee_id, local_day) -> str:
     """Text for /bugun — the employee's own record, which they can always see."""
     summary = attendance.day_summary(con, cfg, employee_id, local_day)
     if not summary:
-        return f"{local_day} — yozuv yo'q."
+        return f"{local_day} — записей нет."
 
     lines = [f"📅 {local_day}"]
     for event in summary["events"]:
@@ -318,20 +321,20 @@ def day_report(cfg, con, employee_id, local_day) -> str:
         if event["reason"]:
             extra = f" · {REASON_LABELS.get(event['reason'], event['reason'])}"
         elif event["source"] == "auto_close":
-            extra = " · o'zi yopildi"
+            extra = " · закрыто системой"
         elif event["source"] == "first_sighting":
-            extra = " · turmadingiz"
-        lines.append(f"{mark} {event['event']} {_hhmm(cfg, event['ts'])}{extra}")
+            extra = " · вы не останавливались"
+        lines.append(f"{mark} {EVENT_WORDS.get(event['event'], event['event'])} {_hhmm(cfg, event['ts'])}{extra}")
 
     minutes_late = _lateness(cfg, con, employee_id, local_day)
     if minutes_late:
-        lines.append(f"\n🔴 {attendance.human_minutes(minutes_late)} kech qoldingiz "
-                     f"(ish boshlanishi {cfg['work_start']})")
+        lines.append(f"\n🔴 Опоздание {attendance.human_minutes(minutes_late)} "
+                     f"(начало работы {cfg['work_start']})")
     if summary["worked_seconds"]:
         hours, rest = divmod(summary["worked_seconds"], 3600)
-        lines.append(f"Jami: {hours} soat {rest // 60} daqiqa")
+        lines.append(f"Итого: {hours} ч {rest // 60} мин")
     if summary["still_in"]:
-        lines.append("Hozir ishxonadasiz")
+        lines.append("Сейчас вы на работе")
     return "\n".join(lines)
 
 
@@ -369,14 +372,14 @@ def late_report(cfg, con, employee_id, days: int = 30) -> str:
             (employee_id, day),
         ).fetchone()
         lines.append(f"🔴 {day}  {_hhmm(cfg, row['ts'])}  "
-                     f"— {attendance.human_minutes(minutes)} kech")
+                     f"— опоздание {attendance.human_minutes(minutes)}")
 
     if not lines:
-        return (f"✅ Oxirgi {days} kunda kechikish yo'q.\n"
-                f"Ish boshlanishi: {cfg['work_start']}")
-    header = f"⏰ Kechikishlar (oxirgi {days} kun)\nIsh boshlanishi: {cfg['work_start']}\n"
-    footer = (f"\n\n{len(lines)} kun kechikdingiz\n"
-              f"Jami: {attendance.human_minutes(total)}")
+        return (f"✅ За последние {days} дней опозданий нет.\n"
+                f"Начало работы: {cfg['work_start']}")
+    header = f"⏰ Опоздания (за {days} дней)\nНачало работы: {cfg['work_start']}\n"
+    footer = (f"\n\nДней с опозданием: {len(lines)}\n"
+              f"Итого: {attendance.human_minutes(total)}")
     return header + "\n".join(lines) + footer
 
 
@@ -385,28 +388,28 @@ def week_report(cfg, con, employee_id) -> str:
     today = cfgmod.to_local(cfg, cfgmod.now_utc()).date()
     monday = today - timedelta(days=today.weekday())
 
-    lines = ["🗓 Shu hafta"]
+    lines = ["🗓 Эта неделя"]
     total = 0
     for offset in range((today - monday).days + 1):
         day = (monday + timedelta(days=offset)).isoformat()
         summary = attendance.day_summary(con, cfg, employee_id, day)
         if not summary:
-            lines.append(f"{day} — yo'q")
+            lines.append(f"{day} — нет")
             continue
         total += summary["worked_seconds"]
         arrived = _hhmm(cfg, summary["arrived"]) if summary["arrived"] else "—"
         minutes_late = _lateness(cfg, con, employee_id, day)
-        late = f"  🔴 {attendance.human_minutes(minutes_late)} kech" if minutes_late else ""
+        late = f"  🔴 опоздание {attendance.human_minutes(minutes_late)}" if minutes_late else ""
         if summary["left"]:
             hours, rest = divmod(summary["worked_seconds"], 3600)
-            worked = f"{hours}s {rest // 60}d"
+            worked = f"{hours}ч {rest // 60}м"
             left = _hhmm(cfg, summary["left"])
         else:
             # No departure yet, so there are no hours to report. Saying "0s 0d"
             # here reads as "worked nothing", which is a different claim.
-            worked, left = "ochiq", "…"
+            worked, left = "открыт", "…"
         lines.append(f"{day}  {arrived}–{left}  {worked}{late}")
 
     hours, rest = divmod(total, 3600)
-    lines.append(f"\nJami: {hours} soat {rest // 60} daqiqa")
+    lines.append(f"\nИтого: {hours} ч {rest // 60} мин")
     return "\n".join(lines)

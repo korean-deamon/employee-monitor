@@ -46,61 +46,61 @@ def walk(counter, x, ys, start=0.0, step=0.2):
     return fired
 
 
-print("\n1. Yuqoridan pastga o'tish")
+print("\n1. Проход сверху вниз")
 c = counting.Counter(cfg)
 fired = walk(c, 640, [200, 300, 420, 500])       # crosses y=360
-check("bitta o'tish", len(fired), 1)
+check("один проход", len(fired), 1)
 direction_down = fired[0]["direction"]
-check("yo'nalish aniqlandi", direction_down in ("kirdi", "chiqdi"), True)
+check("направление определено", direction_down in ("kirdi", "chiqdi"), True)
 
-print("\n2. Pastdan yuqoriga — teskari yo'nalish")
+print("\n2. Снизу вверх — обратное направление")
 c = counting.Counter(cfg)
 fired = walk(c, 640, [500, 420, 300, 200])
-check("bitta o'tish", len(fired), 1)
-check("teskari yo'nalish", fired[0]["direction"] != direction_down, True)
+check("один проход", len(fired), 1)
+check("обратное направление", fired[0]["direction"] != direction_down, True)
 
-print("\n3. Chiziqqa yetmasdan qaytib ketsa — sanalmaydi")
+print("\n3. Вернулся, не дойдя до линии — не считается")
 c = counting.Counter(cfg)
 fired = walk(c, 640, [200, 280, 320, 280, 200])
-check("o'tish yo'q", len(fired), 0)
+check("проходов нет", len(fired), 0)
 
-print("\n4. Chiziq ustida turib qolsa — bir marta")
+print("\n4. Задержался на линии — считается один раз")
 c = counting.Counter(cfg)
 # Steps across, then wobbles over the line for several seconds.
 fired = walk(c, 640, [300, 420, 350, 400, 350, 400], step=0.2)
-check("faqat bitta sanaldi", len(fired), 1)
+check("засчитан только один", len(fired), 1)
 
-print("\n5. Ikki odam yonma-yon")
+print("\n5. Двое рядом")
 c = counting.Counter(cfg)
 fired = []
 for i, y in enumerate([200, 300, 420, 500]):
     fired += c.update([body(400, y), body(900, y)], W, H, i * 0.2)
-check("ikkitasi ham sanaldi", len(fired), 2)
-check("ikki alohida iz", len({f["track"] for f in fired}), 2)
+check("засчитаны оба", len(fired), 2)
+check("две отдельные траектории", len({f["track"] for f in fired}), 2)
 
-print("\n6. Qarama-qarshi yo'nalishda ikki odam")
+print("\n6. Двое во встречных направлениях")
 c = counting.Counter(cfg)
 fired = []
 down = [200, 300, 420, 500]
 up = [500, 420, 300, 200]
 for i in range(4):
     fired += c.update([body(400, down[i]), body(900, up[i])], W, H, i * 0.2)
-check("ikkitasi sanaldi", len(fired), 2)
-check("yo'nalishlar qarama-qarshi",
+check("засчитаны двое", len(fired), 2)
+check("направления встречные",
       len({f["direction"] for f in fired}), 2)
 
-print("\n7. door_invert yo'nalishni almashtiradi")
+print("\n7. door_invert меняет направление")
 flipped = dict(cfg, door_invert=True)
 c = counting.Counter(flipped)
 fired = walk(c, 640, [200, 300, 420, 500])
-check("almashdi", fired[0]["direction"] != direction_down, True)
+check("поменялось", fired[0]["direction"] != direction_down, True)
 
-print("\n8. Uzoqda turgan odam — chiziqqa tegmasa sanalmaydi")
+print("\n8. Стоящий далеко — не считается, пока не дошёл до линии")
 c = counting.Counter(cfg)
 fired = walk(c, 640, [100, 120, 110, 130])
-check("o'tish yo'q", len(fired), 0)
+check("проходов нет", len(fired), 0)
 
-print("\n9. Bazaga yozish va kunlik hisob")
+print("\n9. Запись в базу и дневной итог")
 db.init_db()
 con = db.get_conn()
 now = cfgmod.now_utc()
@@ -108,16 +108,16 @@ counting.record(con, cfg, "kirdi", now)
 counting.record(con, cfg, "kirdi", now)
 counting.record(con, cfg, "chiqdi", now)
 totals = counting.totals_for_day(con, cfgmod.local_day(cfg, now))
-check("kirdi", totals.get("kirdi"), 2)
-check("chiqdi", totals.get("chiqdi"), 1)
-check("ichkarida", totals.get("kirdi", 0) - totals.get("chiqdi", 0), 1)
+check("вошли", totals.get("kirdi"), 2)
+check("вышли", totals.get("chiqdi"), 1)
+check("внутри", totals.get("kirdi", 0) - totals.get("chiqdi", 0), 1)
 
-print("\n10. Davomat jadvaliga tegmaydi")
+print("\n10. Таблицу посещаемости не трогает")
 rows = con.execute("SELECT COUNT(*) c FROM attendance_events").fetchone()["c"]
-check("davomat yozuvlari o'zgarmadi", rows, 0)
+check("записи посещаемости не изменились", rows, 0)
 con.close()
 
-print("\n11. count_point: burun nuqtasi ishlatiladi")
+print("\n11. count_point: используется точка носа")
 nose_cfg = dict(cfg, count_point="nose")
 c = counting.Counter(nose_cfg)
 fired = []
@@ -127,7 +127,7 @@ for i, y in enumerate([200, 300, 420, 500]):
     person = body(640, 700)
     person["nose"] = (640.0, float(y))
     fired += c.update([person], W, H, i * 0.2)
-check("burun kesib o-tdi", len(fired), 1)
+check("нос пересёк линию", len(fired), 1)
 
 c = counting.Counter(cfg)            # same frames, but count_point=foot
 fired = []
@@ -135,12 +135,12 @@ for i, y in enumerate([200, 300, 420, 500]):
     person = body(640, 700)
     person["nose"] = (640.0, float(y))
     fired += c.update([person], W, H, i * 0.2)
-check("oyoq nuqtasi qimirlamadi, sanalmadi", len(fired), 0)
+check("точка ног не двигалась, не засчитано", len(fired), 0)
 
-print("\n12. Burun topilmasa oyoq nuqtasiga qaytadi")
+print("\n12. Если нос не найден, возврат к точке ног")
 c = counting.Counter(nose_cfg)
 fired = walk(c, 640, [200, 300, 420, 500])    # no nose key at all
-check("zaxira ishladi", len(fired), 1)
+check("запасной путь сработал", len(fired), 1)
 
-print(f"\n{'=' * 46}\n{ok} ok, {fail} xato\n")
+print(f"\n{'=' * 46}\n{ok} ok, {fail} ошибок\n")
 sys.exit(1 if fail else 0)

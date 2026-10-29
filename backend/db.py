@@ -58,7 +58,7 @@ def _migrate_employees(con):
         ALTER TABLE employees_new RENAME TO employees;
     """)
     con.commit()
-    print("[db] employees jadvali ism/familiyaga ko'chirildi")
+    print("[db] таблица employees переведена на имя/фамилию")
 
 
 def init_db():

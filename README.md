@@ -1,104 +1,108 @@
 # employee-monitor
 
-Kamera orqali xodimlar davomati. To'liq texnik topshiriq: [TZ.md](TZ.md).
+Учёт рабочего времени сотрудников по камере. Полное техническое задание:
+[TZ.md](TZ.md).
 
-Tizim **24/7 ishlaydi** — kamera hech qachon o'chmaydi. Soat davomatni aniqlamaydi,
-faqat baholaydi (kechikish, erta ketish).
+Система работает **круглосуточно** — камера никогда не выключается. Часы не
+определяют посещаемость, они только её оценивают (опоздание, ранний уход).
 
-## O'rnatish
+## Установка
 
 ```bash
 git clone <repo> employee-monitor
 cd employee-monitor
 ./setup.sh                 # GPU (NVIDIA, CUDA 12.8)
-./setup.sh --cpu           # GPU yo'q bo'lsa — ishlaydi, lekin ~10 barobar sekin
+./setup.sh --cpu           # без GPU — работает, но примерно в 10 раз медленнее
 ```
 
-Script venv yaratadi, kutubxonalarni o'rnatadi va tana modellarini yuklab
-oladi. Qayta ishga tushirsa bo'ladi — bajarilgan qadamlarni o'tkazib yuboradi.
+Скрипт создаёт venv, ставит зависимости и скачивает модели тела. Его можно
+запускать повторно — уже выполненные шаги пропускаются.
 
-Keyin:
+Дальше:
 
 ```bash
-cp .env.example .env       # Telegram kerak bo'lsa, tokenni yozing
+cp .env.example .env       # если нужен Telegram, впишите токен
 chmod 600 .env
 ./emon start
 ```
 
-Parollar birinchi ishga tushirishda **o'zi yaratiladi** —
-`data/admin_pass.txt` va `data/manage_pass.txt`.
+Пароли создаются **сами** при первом запуске —
+`data/admin_pass.txt` и `data/manage_pass.txt`.
 
-### Bilib qo'yish kerak bo'lgan ikki narsa
+### Два момента, о которых стоит знать заранее
 
-**Yuz modeli (~326 MB)** birinchi ishga tushirishda internetdan yuklanadi va
-`~/.insightface/` ga saqlanadi. Shundan keyin internet kerak emas. Internetsiz
-serverga o'rnatayotgan bo'lsangiz, bu papkani qo'lda ko'chiring.
+**Модель лица (~326 МБ)** скачивается при первом запуске и сохраняется в
+`~/.insightface/`. После этого интернет не нужен. Если устанавливаете на сервер
+без интернета — скопируйте эту папку вручную.
 
-**PyTorch har kompyuterda bir xil o'rnatilmaydi.** `setup.sh` CUDA 12.8 uchun
-yozilgan. Boshqa drayver bo'lsa, PyTorch saytidagi mos buyruqni ishlating yoki
-`--cpu` bilan o'rnating. `requirements.lock.txt` aynan shu mashinaning nusxasi —
-boshqa drayverda ishlamaydi, faqat shu muhitni qayta tiklash uchun.
+**PyTorch ставится по-разному на разных машинах.** `setup.sh` написан под
+CUDA 12.8. При другом драйвере возьмите подходящую команду с сайта PyTorch или
+ставьте с `--cpu`. Файл `requirements.lock.txt` — слепок именно этой машины,
+на другом драйвере он не заработает, он нужен только для точного
+воспроизведения этой среды.
 
-## Ishga tushirish
+## Запуск
 
-Bitta script hammasini boshqaradi:
+Всем управляет один скрипт:
 
 ```bash
 cd ~/Projects/employee-monitor
-./emon start      # ishga tushirish
-./emon stop       # to'xtatish
-./emon restart    # qayta ishga tushirish (sozlama o'zgargandan keyin)
-./emon status     # nima ishlayapti, kamera qanday ko'rayapti
-./emon logs       # kamera logi (logs api, logs bot ham bor)
+./emon start      # запустить
+./emon stop       # остановить
+./emon restart    # перезапустить (после изменения настроек)
+./emon status     # что работает и как видит камера
+./emon logs       # лог камеры (есть также logs api, logs bot)
 ```
 
-`start` uchta jarayonni ko'taradi: API, kamera va — `telegram_enabled` yoqilgan
-bo'lsa — Telegram boti. O'chirilgan bo'lsa botni ishga tushirmaydi va shuni
-aytib qo'yadi, ya'ni Telegramni yoqish-o'chirish **sozlama** o'zgarishi, boshqa
-buyruq esdan chiqarish emas.
+`start` поднимает три процесса: API, камеру и — если включён
+`telegram_enabled` — бота Telegram. Если выключен, бот не запускается и скрипт
+об этом сообщает: включение Telegram это **изменение настройки**, а не другая
+команда, которую надо помнить.
 
-`start` modelni yuklash uchun 25 sekund kutadi, keyin holatni ko'rsatadi —
-shoshib tekshirilsa kamera hali ochilmagan bo'lib "ishlamadi" deb ko'rinardi.
+`start` ждёт 25 секунд, пока загрузится модель, и только потом показывает
+состояние — при быстрой проверке камера была бы ещё не открыта и это выглядело
+бы как «не работает».
 
-`stop` avval SIGTERM yuboradi, shunda kamera qurilmani bo'shatadi; javob
-bermagan jarayongagina SIGKILL tegadi. **Hech kim "ketdi" deb belgilanmaydi** —
-kameraning o'chishi odamlarning ketishi emas; ochiq kunlar keyingi ishga
-tushirishda haqiqiy oxirgi ko'rinish vaqti bilan yopiladi.
+`stop` сначала посылает SIGTERM, чтобы камера освободила устройство; SIGKILL
+достаётся только процессу, который не ответил. **Никто не отмечается как
+ушедший** — выключение камеры это не уход людей; открытые дни закрываются при
+следующем запуске по реальному времени последнего появления.
 
-Serverga o'rnatilganda bular `systemd` xizmatiga o'tadi, shunda kompyuter
-yonganda o'zi ishga tushadi va qulasa o'zi ko'tariladi.
+При установке на сервер это переводится в службу `systemd`, и тогда система
+поднимается сама при включении компьютера и восстанавливается после сбоя.
 
-## Sahifalar
+## Страницы
 
-| Manzil | Nima |
+| Адрес | Что это |
 |---|---|
-| `/` | Dashboard: kun jadvali, jonli kamera, kelish/ketish, kun hisobi |
-| `/admin` | Xodim qo'shish, yuz skanerlash, davomatni tuzatish, Telegram |
-| `/counter` | Eshikdan kirdi/chiqdi hisobi — **alohida sahifa** |
+| `/` | Дашборд: график дня, живая камера, входы и выходы, итоги |
+| `/admin` | Сотрудники, сканирование лица, исправление посещаемости, Telegram |
+| `/counter` | Учёт входов и выходов через дверь — **отдельная страница** |
 
-Dashboard paroli `data/admin_pass.txt`, boshqaruv paroli `data/manage_pass.txt`
-faylida (foydalanuvchi nomi `admin`). Boshqaruv paroli alohida: dashboardni
-ko'rish huquqi xodim qo'shish huquqini bermaydi.
+Пароль дашборда в `data/admin_pass.txt`, пароль управления в
+`data/manage_pass.txt` (имя пользователя `admin`). Пароль управления отдельный:
+право видеть дашборд не даёт права добавлять сотрудников.
 
-## Davomat qanday yoziladi
+## Как записывается посещаемость
 
-**Keldi** — xodim kameraga yaqin kelib 3 sekund turadi. Turishni esdan
-chiqarsa, bugungi birinchi ko'rinishi `first_sighting` sifatida yoziladi, ya'ni
-kelgan vaqti yo'qolmaydi.
+**Пришёл** — сотрудник подходит к камере и стоит 3 секунды. Если забыл
+остановиться, первое за день появление записывается как `first_sighting`, то
+есть время прихода не теряется.
 
-**Ketdi** — ketishdan oldin yana kelib turadi. Esdan chiqarsa, 30 daqiqa
-ko'rinmagandan keyin tizim kunni **oxirgi ko'rinish vaqti bilan** o'zi yopadi.
+**Ушёл** — перед уходом снова подходит и стоит. Если забыл, система сама
+закрывает день через 30 минут отсутствия, **по времени последнего появления**.
 
-Yonidan o'tib ketgan odam yozilmaydi: turish uchun yuz yetarlicha katta
-bo'lishi, qimirlamasligi va 3 sekund turishi kerak — uchalasi birga.
+Прошедший мимо человек не записывается: чтобы это считалось остановкой, лицо
+должно быть достаточно крупным, неподвижным и держаться три секунды — все три
+условия сразу.
 
-Kamera to'xtaganda hech kim "ketdi" bo'lmaydi. Kameraning o'chishi odamlarning
-ketishi emas; ochiq kunlar keyingi ishga tushishda yopiladi.
+Когда камера останавливается, никто не отмечается как ушедший. Выключение
+камеры — это не уход людей; открытые дни закрываются при следующем запуске.
 
-## Sozlash
+## Настройка
 
-`data/config.json` — barcha qiymatlar shu yerda. O'zgartirgandan keyin
-`pkill -f recognizer.py` va qayta ishga tushiring:
+`data/config.json` — все значения здесь. После изменения выполните
+`pkill -f recognizer.py` и запустите заново (или `./emon restart`):
 
 ```json
 {
@@ -113,259 +117,236 @@ ketishi emas; ochiq kunlar keyingi ishga tushishda yopiladi.
 }
 ```
 
-| Qiymat | Ma'nosi |
+| Значение | Что означает |
 |---|---|
-| `stand_min_face_ratio` | Yuz kadr kengligining qancha qismini egallashi kerak — "yaqin keldimi" |
-| `stand_min_face_px` | Yuzning minimal piksel kengligi — "tanish uchun detal yetarlimi" |
-| `stand_seconds` | Qancha turish kerak |
-| `min_session_seconds` | Kelgandan keyin shu vaqt ichidagi turish takroriy deb o'tkaziladi |
-| `absence_close_seconds` | Shu vaqt ko'rinmasa kun o'zi yopiladi |
-| `timezone` | Ofis vaqt mintaqasi |
-| `telegram_enabled` | Bot umuman ishlaydimi |
-| `telegram_send_notifications` | Xabarlar rostdan yuboriladimi |
-| `body_mode` | Tana aniqlash: `off` · `box` · `seg` · `pose` · `full` |
-| `body_fps` | Tana sekundiga necha marta tekshiriladi |
+| `stand_min_face_ratio` | Какую долю ширины кадра должно занимать лицо — «подошёл ли близко» |
+| `stand_min_face_px` | Минимальная ширина лица в пикселях — «хватает ли детализации» |
+| `stand_seconds` | Сколько нужно стоять |
+| `min_session_seconds` | Остановка в этот срок после прихода считается повтором |
+| `absence_close_seconds` | Через сколько отсутствия день закрывается сам |
+| `timezone` | Часовой пояс офиса |
+| `telegram_enabled` | Работает ли бот вообще |
+| `telegram_send_notifications` | Отправляются ли сообщения на самом деле |
+| `body_mode` | Распознавание тела: `off` · `box` · `seg` · `pose` · `full` |
+| `body_fps` | Сколько раз в секунду проверяется тело |
 
-### Tana aniqlash
+Лицо должно пройти **оба** условия. Их два не случайно: доля отвечает на вопрос
+«подошёл ли человек к камере» и переживает смену разрешения камеры; пиксельный
+порог отвечает на другой вопрос — «хватает ли детализации для распознавания» —
+и это требование модели.
 
-Yuz modeli (InsightFace) faqat kameraga qaragan yuzni ko'radi. Tana uchun
-alohida model ishlatiladi (YOLOv8), chunki eshikdan o'tayotgan odam yuzini
-burgan bo'ladi.
+Оба настраиваются **заново для каждой камеры** — угол объектива и расстояние
+будут другими. Рядом с каждым лицом в кадре показана его ширина в пикселях
+(`210px`, или `140px далеко`), порог подбирается по этому измерению.
 
-| Rejim | Nima chizadi | Qachon kerak |
+### Распознавание тела
+
+Модель лица (InsightFace) видит только лицо, повёрнутое к камере. Для тела
+используется отдельная модель (YOLOv8) — человек, проходящий через дверь,
+обычно отвёрнут.
+
+| Режим | Что рисует | Когда нужен |
 |---|---|---|
-| `off` | hech narsa | eng tez |
-| `box` | to'rtburchak ramka | **eshikdan o'tganlarni sanash** uchun yetarli |
-| `seg` | tana shakli bo'ylab kontur | modelning ishini ko'rish uchun |
-| `pose` | skelet: yelka, tirsak, bilak, son | **ish/telefon holati** uchun |
-| `full` | kontur + skelet birga | ikki model ishlaydi, ikki barobar og'ir |
+| `off` | ничего | быстрее всего |
+| `box` | прямоугольную рамку | достаточно для **подсчёта проходов** |
+| `seg` | контур по форме тела | чтобы увидеть, что именно видит модель |
+| `pose` | скелет: плечи, локти, запястья, бёдра | для **позы: работа или телефон** |
+| `full` | контур и скелет вместе | работают две модели, вдвое тяжелее |
 
-Skelet **bilakda tugaydi** — barmoq yo'q. Barmoq uchun boshqa model kerak
-bo'lardi, lekin 2 metrdan butun qo'l ~50 piksel, barmoq ~10 — rasmda yo'q.
-Kerak ham emas: telefon ushlagan qo'lni bilak balandligi, boshning egilishini
-esa burun–yelka chizig'i ko'rsatadi.
+Скелет **заканчивается на запястье** — пальцев нет. Для пальцев нужна другая
+модель, но с двух метров вся кисть занимает ~50 пикселей, а палец ~10 — в
+изображении их просто нет. И они не нужны: руку с телефоном показывает высота
+запястья, а наклон головы — линия от носа к плечам.
 
-Bosh nuqtalaridan faqat **burun** chiziladi. Ko'z va quloq bu masofada bir
-necha piksel, ishonchsiz va hech qanday savolga javob bermaydi.
+Из точек головы рисуется только **нос**. Глаза и уши на таком расстоянии
+занимают несколько пикселей, ненадёжны и ни на какой вопрос не отвечают.
 
-> Devordagi odam tasviri bor posterlar ham tana deb aniqlanadi. Eshikdan
-> sanashga o'tilganda bu o'zi hal bo'ladi — poster chiziqni kesmaydi va
-> qimirlamaydi. Hozircha "tana: N" raqami haqiqiy odam soni emas.
+> Плакаты с изображением человека тоже определяются как тело. При переходе к
+> подсчёту через дверь это решается само — плакат не пересекает линию и не
+> двигается. Пока что число «тел: N» не равно числу реальных людей.
 
-Yuz **ikkala shartdan ham** o'tishi kerak. Ikkitasi bo'lgani bejiz emas:
-nisbat "odam kameraga yaqin keldimi" degan savolga javob beradi va kamera
-ruxsati o'zgarsa ham ishlaydi; piksel chegarasi esa "tanish uchun detal
-yetarlimi" degan boshqa savolga javob beradi va u modelning talabi.
-
-Ikkisi ham **har bir kamera uchun joyida sozlanadi** — linza burchagi va
-masofa boshqacha bo'ladi. Kamera tasvirida har bir yuz yonida piksel kengligi
-yoziladi (`210px`, yoki `140px uzoq`), chegara shu o'lchovga qarab tanlanadi.
-
-## Test
+## Тесты
 
 ```bash
-venv/bin/python scripts/today.py            # bugungi yozuvlar
-venv/bin/python scripts/today.py --clear    # testni qaytadan boshlash
+venv/bin/python scripts/today.py            # записи за сегодня
+venv/bin/python scripts/today.py --clear    # начать тест заново
+./tests/run.sh                              # автоматические тесты
 ```
 
-`--clear` faqat bugungi davomat yozuvlarini o'chiradi; xodimlar va yuz
-namunalari saqlanadi.
+`--clear` удаляет только сегодняшние записи посещаемости; сотрудники и образцы
+лиц сохраняются.
 
-Avtomatik testlar:
-
-```bash
-./tests/run.sh
-```
-
-Testlar vaqtinchalik bazada ishlaydi — `data/activity.db` ga hech qachon
-tegmaydi, shuning uchun ishlab turgan tizimda ham xavfsiz.
-
+Тесты работают на временной базе — `data/activity.db` они **не трогают**,
+поэтому их безопасно запускать и на работающей системе.
 
 ## Telegram
 
-Ikkita alohida kalit bor, va ular **boshqa-boshqa vaqtda** yoqiladi:
+Два отдельных переключателя, и включаются они **в разное время**:
 
-| Kalit | Yoqilganda nima bo'ladi |
+| Переключатель | Что происходит при включении |
 |---|---|
-| `telegram_enabled` | Bot ishga tushadi: bog'lanish, `/bugun`, `/hafta`, tugmalar ishlaydi |
-| `telegram_send_notifications` | Keldi/ketdi xabarlari rostdan xodimlarga boradi |
+| `telegram_enabled` | Бот запускается: привязка, `/bugun`, `/hafta`, кнопки |
+| `telegram_send_notifications` | Сообщения о приходе и уходе реально доходят до сотрудников |
 
-Ikkisi ham **o'chirilgan** holatda keladi. Xabarlar har holda tayyorlanib
-**navbatga** (`telegram_outbox`) yoziladi va admin sahifasida ko'rinadi — ya'ni
-nima yuborilishini xodimlarning telefoni jiringlashidan oldin ko'rib olasiz.
+Оба приходят **выключенными**. Сообщения в любом случае готовятся и пишутся в
+**очередь** (`telegram_outbox`), её видно в админ-панели — то есть можно
+посмотреть, что будет отправлено, до того как у кого-то зазвонит телефон.
 
-Birinchi kalitni yoqib, ikkinchisini o'chiq qoldirish — sinab ko'rish uchun eng
-qulay holat: bog'lanishni tekshirasiz, xabarlar esa chiqmaydi.
+Включить первый и оставить второй выключенным — самый удобный режим для
+проверки: привязка работает, сообщения не уходят.
 
-### Xodimni ulash
+### Как подключить сотрудника
 
-1. Admin sahifasida xodim qatorida **Kod olish** bosiladi — `K7M4-RPQX` chiqadi
-2. Kod xodimga beriladi (og'zaki yoki qog'ozda)
-3. Xodim botni ochadi, `/start` bosadi va kodni yuboradi
-4. Admin sahifasida **ulangan** deb ko'rinadi
+1. В админ-панели в строке сотрудника нажать **Получить код** — появится `K7M4-RPQX`
+2. Код передаётся сотруднику (устно или на бумаге)
+3. Сотрудник открывает бота, нажимает `/start` и отправляет код
+4. В админ-панели появляется отметка **привязан**
 
-Kod **bir marta** ishlaydi, **24 soat** amal qiladi, va yangi kod berilganda
-eskisi bekor bo'ladi. Noto'g'ri urinish soatda 5 ta bilan cheklangan.
+Код действует **один раз** и **24 часа**; при выдаче нового старый
+аннулируется. Неверных попыток не больше 5 в час.
 
-### Bot buyruqlari
+### Команды бота
 
-| Buyruq | Nima |
+| Команда | Что показывает |
 |---|---|
-| `/start`, `/help` | Holat va buyruqlar |
-| `/bugun` | Bugungi yozuvi, kechikishi bilan |
-| `/hafta` | Shu haftaning hisobi, har kun kechikishi bilan |
-| `/kechikish` | Oxirgi 30 kundagi har bir kechikish va jami |
+| `/start`, `/help` | Состояние и список команд |
+| `/bugun` | Запись за сегодня, с опозданием |
+| `/hafta` | Итоги недели, с опозданием по каждому дню |
+| `/kechikish` | Каждое опоздание за последние 30 дней и сумма |
 
-### Erta ketish savoli
+### Вопрос при раннем уходе
 
-18:00 dan oldin ketgan xodimga tugmali xabar boradi: **Ha · Yo'q · Sabab**.
-`Yo'q` yozuvni bekor qiladi (xodim ishxonada deb qoladi), `Sabab` esa ro'yxat
-chiqaradi: Obed, Shifokor, Shaxsiy ish, Ish topshirig'i, Boshqa.
+Ушедшему раньше 18:00 приходит сообщение с кнопками: **Да · Нет · Причина**.
+`Нет` отменяет запись (сотрудник остаётся на работе), `Причина` открывает
+список: Обед, Врач, Личное дело, Рабочее поручение, Другое.
 
-Tugma bosilmasa yozuv **saqlanib qoladi** — hisobotda "sababsiz erta ketish"
-deb turadi. Tizim javob kutib turmaydi.
+Если кнопку не нажали, запись **сохраняется** — в отчёте она будет помечена
+как ранний уход без причины. Система не ждёт ответа.
 
-## Hisobotlar
+## Отчёты
 
-| Manzil | Nima |
+| Адрес | Что показывает |
 |---|---|
-| `/api/summary` | Bugungi kun: har bir xodim, soat, tanaffus |
-| `/api/report/monthly` | Oylik: jami soat, kechikish, erta ketishlar |
-| `/api/report/late` | Kechikishlar: har biri alohida + xodim bo'yicha jami |
-| `/api/report/monthly.csv` | Oylik hisobot Excel uchun fayl |
+| `/api/summary` | Сегодняшний день: каждый сотрудник, часы, перерывы |
+| `/api/report/late` | Опоздания: каждое по отдельности и суммы по сотрудникам |
+| `/api/report/monthly` | Месяц: всего часов, опоздания, ранние уходы |
+| `/api/report/monthly.csv` | То же файлом для Excel |
 
-Oylik hisobotga `?month=2026-10`, kechikishlarga `?days=30` berib davrni
-o'zgartirish mumkin.
+Месяц выбирается через `?month=2026-10`, период опозданий через `?days=30`.
 
-Kechikish dashboardda alohida bo'lim bo'lib turadi: bugun kech qolganlar yirik
-shriftda, ostida xodim bo'yicha jadval (nechta kun, jami, o'rtacha, eng ko'p),
-va ochiladigan ro'yxatda har bir kechikish alohida. Har joyda soat va daqiqa
-bilan — `3 soat 47 daqiqa kech`, `8 daqiqa kech`.
+Опоздания вынесены на дашборд отдельным разделом: сегодняшние опоздавшие
+крупно, ниже таблица по сотрудникам (сколько дней, всего, в среднем, максимум),
+а в раскрывающемся списке — каждое опоздание отдельно. Везде в часах и минутах:
+`опоздание 3 ч 47 мин`, `опоздание 8 мин`.
 
-## Qo'lda tuzatish
+## Резервные копии
 
-Kamera xato qilsa yoki xodim turishni esdan chiqarsa, yozuv qo'lda tuzatiladi.
-Har bir tuzatilgan yozuv `source = manual` deb belgilanadi va hisobotda alohida
-ustunda ko'rinadi — ya'ni kameraning ishi bilan qo'lning ishi aralashmaydi.
+Если база потеряется, пропадут **все образцы лиц и вся история посещаемости**,
+и восстановить их будет неоткуда. Поэтому копия снимается автоматически.
 
-| Amal | So'rov |
-|---|---|
-| Vaqtini/turini tuzatish | `PATCH /api/admin/events/{id}` |
-| Yangi yozuv qo'shish | `POST /api/admin/events` |
-| Yozuvni bekor qilish | `DELETE /api/admin/events/{id}` |
-
-Bekor qilingan yozuv **o'chirilmaydi** — `cancelled = 1` deb belgilanadi, ya'ni
-kamera nimani ko'rgani va kim bekor qilgani javobgar qoladi.
-
-
-## Zaxira nusxa
-
-Baza yo'qolsa **hamma yuz namunalari va davomat tarixi** ketadi, va ularni
-hech narsadan tiklab bo'lmaydi. Shuning uchun nusxa avtomatik olinadi.
-
-`./emon start` har safar ishga tushganda nusxa oladi — baza aynan o'sha paytda
-bo'sh turadi, ya'ni eng xavfsiz payt.
+`./emon start` снимает копию при каждом запуске — именно в этот момент база
+гарантированно никем не занята.
 
 ```bash
-venv/bin/python scripts/backup.py            # qo'lda nusxa olish
-venv/bin/python scripts/backup.py --list     # nusxalarni ko'rish
-venv/bin/python scripts/backup.py --keep 60  # 60 kun saqlash (standart 30)
+venv/bin/python scripts/backup.py            # снять копию вручную
+venv/bin/python scripts/backup.py --list     # посмотреть копии
+venv/bin/python scripts/backup.py --keep 60  # хранить 60 дней (по умолчанию 30)
 ```
 
-Nusxalar: `data/backups/activity_YYYY-MM-DD_HHMM.db`, 30 kundan eskilari
-o'zi o'chiriladi.
+Копии лежат в `data/backups/activity_ГГГГ-ММ-ДД_ЧЧММ.db`, старше 30 дней
+удаляются сами.
 
-Nusxa SQLite'ning o'z `backup` mexanizmi bilan olinadi, oddiy fayl nusxasi
-bilan emas — yozilayotgan bazani oddiy ko'chirish yarim tugagan tranzaksiyani
-ushlab qolishi va buzuq fayl berishi mumkin.
+Копия снимается собственным механизмом SQLite, а не обычным копированием
+файла — копирование базы, в которую идёт запись, может захватить
+незавершённую транзакцию и дать испорченный файл.
 
-**Tiklash:** `data/backups/` dan kerakli faylni `data/activity.db` ustiga
-ko'chirasiz (avval `./emon stop`).
+**Восстановление:** остановите систему (`./emon stop`), скопируйте нужный файл
+из `data/backups/` поверх `data/activity.db`, запустите снова.
 
-## Davomatni tuzatish (admin panel)
+## Исправление посещаемости (админ-панель)
 
-`/admin` sahifasining **"Davomatni tuzatish"** bo'limida:
+В разделе **«Исправление посещаемости»** на `/admin`:
 
-| Amal | Qanday |
+| Действие | Как |
 |---|---|
-| Kunni tanlash | Yuqoridagi sana maydoni |
-| Vaqtini to'g'irlash | Qator yonidagi **Vaqtini tuzatish** |
-| Yozuvni bekor qilish | **Bekor qilish** — o'chirilmaydi, chizib qo'yiladi |
-| Bekor qilinganni qaytarish | **Qaytarish** |
-| Yangi yozuv qo'shish | **Yozuv qo'shish** — xodim, kirdi/chiqdi, vaqt |
+| Выбрать день | Поле даты сверху |
+| Исправить время | Кнопка **Исправить время** в строке |
+| Отменить запись | **Отменить** — запись не удаляется, а зачёркивается |
+| Вернуть отменённую | **Вернуть** |
+| Добавить запись | **Добавить запись** — сотрудник, вошёл/вышел, время |
 
-Tuzatilgan yozuv `manual` deb belgilanadi va oylik hisobotda alohida ustunda
-ko'rinadi — kameraning ishi bilan qo'lning ishi aralashmaydi.
+Исправленная запись помечается как `manual` и попадает в отдельную колонку
+месячного отчёта — работа камеры и работа руками не смешиваются.
 
-Bekor qilingan yozuv **ro'yxatda qoladi**, chizib qo'yilgan holda. Shuning
-uchun noto'g'ri bekor qilish ko'rinadi va qaytariladi — ma'lumot yo'qolgandek
-tuyulmaydi.
+Отменённая запись **остаётся в списке** зачёркнутой. Поэтому ошибочную отмену
+видно, и её можно вернуть — ничего не выглядит как потеря данных.
 
-## Eshikdan sanash (counter)
-
-**Davomatdan butunlay alohida.** Davomat "bu kim" degan savolga javob beradi —
-yuzdan, va faqat odam kameraga kelib turganda. Sanash esa "nechta odam o'tdi"
-degan boshqa savolga javob beradi — tanadan, va **hamma uchun**: mehmon ham,
-o'quvchi ham, ro'yxatda bo'lmagan odam ham.
-
-Ikkisi hech qachon bir xil raqam bermaydi va berishi ham shart emas.
-
-| Sozlama | Ma'nosi |
+| Действие | Запрос |
 |---|---|
-| `counter_enabled` | Sanash yoqilganmi (standart: `false`) |
-| `door_line` | Chiziq: `[[x1,y1],[x2,y2]]`, kadr o'lchamiga nisbatan |
-| `door_invert` | Yo'nalishni almashtirish (kirdi ↔ chiqdi) |
-| **`count_point`** | **Tananing qaysi nuqtasi chiziqni kesishi kerak** |
-| `count_cooldown_seconds` | Chiziq ustida turgan odam qayta sanalmasligi uchun |
+| Исправить время или тип | `PATCH /api/admin/events/{id}` |
+| Добавить запись | `POST /api/admin/events` |
+| Отменить запись | `DELETE /api/admin/events/{id}` |
+| Вернуть отменённую | `POST /api/admin/events/{id}/restore` |
 
-### `count_point` — qaysi nuqta sanaladi
+## Подсчёт проходов через дверь (counter)
 
-Butun tana emas, skelet ham emas — **bitta nuqta**. Qaysi nuqta ekani kameraga
-bog'liq, kodga emas:
+**Полностью отделён от посещаемости.** Посещаемость отвечает на вопрос «кто
+это» — по лицу, и только когда человек подошёл к камере. Подсчёт отвечает на
+другой вопрос — «сколько людей прошло» — по телу, и **для всех**: гостей,
+учеников, людей, которых нет в системе.
 
-| Qiymat | Qayerda | Qachon to'g'ri |
+Эти два числа никогда не совпадут, и не должны.
+
+| Настройка | Что означает |
+|---|---|
+| `counter_enabled` | Включён ли подсчёт (по умолчанию `false`) |
+| `door_line` | Линия: `[[x1,y1],[x2,y2]]`, в долях от размера кадра |
+| `door_invert` | Поменять направления местами (вошёл ↔ вышел) |
+| `count_point` | **Какая точка тела должна пересечь линию** |
+| `count_cooldown_seconds` | Чтобы стоящий на линии не считался много раз |
+
+### `count_point` — какая точка считается
+
+Не всё тело и не скелет — **одна точка**. Какая именно, зависит от камеры, а не
+от кода:
+
+| Значение | Где | Когда правильно |
 |---|---|---|
-| `foot` | Ramkaning pastki o'rtasi | **Kamera odamni to'liq ko'rsa.** Oyoq polda turgan joy — odam chiziqdan haqiqatan o'tgan lahza shu |
-| `nose` | Burun (pose rejimi kerak) | **Kamera faqat belidan yuqorisini ko'rsa.** Unda ramka pasti kadr chetida qotib qoladi va hech qachon chiziqni kesmaydi |
-| `centre` | Ramka markazi | Oraliq variant, kamdan-kam kerak |
+| `foot` | Низ рамки по центру | **Когда камера видит человека целиком.** Ноги стоят на полу — это и есть момент прохода |
+| `nose` | Нос (нужен режим pose) | **Когда камера видит только выше пояса.** Тогда низ рамки упирается в край кадра и не двигается вовсе |
+| `centre` | Центр рамки | Промежуточный вариант, нужен редко |
 
-**Hozir `nose` qo'yilgan** — laptop kamerasida tana pastdan kesilgani uchun.
-O'lchab ko'rilgan: tana `y=82..479`, kadr balandligi `480` — ya'ni oyoq
-nuqtasi kadr chetiga yopishib qolgan va qimirlamaydi.
+Сейчас стоит `nose` — на ноутбучной камере тело обрезается снизу. Измерено:
+тело `y=82..479` при высоте кадра `480`, то есть точка ног прилипла к краю
+кадра и не двигается.
 
-**Haqiqiy kamera o'rnatilgandan keyin `foot` ga qaytaring:**
+**После установки настоящей камеры верните `foot`:**
 
 ```json
 "count_point": "foot"
 ```
 
-`data/config.json` da shu bitta satrni o'zgartirib, `./emon restart` deysiz.
+Одна строка в `data/config.json`, затем `./emon restart`.
 
-Nega qaytarish kerak: shiftga o'rnatilgan kamera odamni to'liq ko'radi, va
-o'shanda burun chiziqni **oyoqdan oldinroq** kesadi — odam hali eshikdan
-o'tmasdan "o'tdi" deb yozilib qolishi mumkin. Oyoq nuqtasi esa haqiqiy
-o'tish lahzasini beradi.
+Почему нужно вернуть: камера под потолком видит человека целиком, и тогда нос
+пересекает линию **раньше ног** — человек может быть записан как прошедший,
+ещё не выйдя за дверь. Точка ног даёт реальный момент прохода.
 
-Agar tanlangan nuqta topilmasa (pose o'chiq, yoki burun aniq ko'rinmasa),
-tizim o'zi **oyoq nuqtasiga qaytadi** — sanash to'xtab qolmaydi.
+Если выбранная точка недоступна (режим pose выключен или нос не найден
+уверенно), система сама **возвращается к точке ног** — подсчёт не останавливается.
 
-### Chiziq yo'nalishi
+### Направление линии
 
-| Chiziq | `door_line` | Qachon |
+| Линия | `door_line` | Когда |
 |---|---|---|
-| **Gorizontal** (chapdan o'ngga) | `[[0, 0.6], [1, 0.6]]` | Eshik uchun — odam yuqoridan pastga yoki aksincha o'tadi |
-| Vertikal | `[[0.5, 0], [0.5, 1]]` | Odam yonma-yon o'tadigan joy uchun |
+| **Горизонтальная** (слева направо) | `[[0, 0.6], [1, 0.6]]` | Для двери — человек идёт сверху вниз или наоборот |
+| Вертикальная | `[[0.5, 0], [0.5, 1]]` | Там, где человек проходит сбоку |
 
-Hozir **gorizontal** qo'yilgan, kadrning 60% balandligida. Chiziq `/counter`
-sahifasida ko'rinib turadi — raqamni o'zgartirasiz, chiziq suriladi.
+Линия видна на странице `/counter` — меняете число, линия сдвигается.
 
-Chiziq `/counter` sahifasida **ko'rinib turadi** — raqamni o'zgartirasiz,
-chiziq suriladi. Masalan `[[0, 0.6], [1, 0.6]]` — kadrning 60% balandligida
-gorizontal chiziq.
+**Отделение:** у счётчика свой модуль (`counting.py`), своя таблица
+(`crossings`), своё изображение (`counter_snapshot.jpg`) и своя страница. Вызов
+в цикле камеры обёрнут в `try/except` — если счётчик упадёт, это попадёт в лог,
+а **учёт посещаемости продолжит работать**.
 
-**Ajratilganligi:** counter o'z moduli (`counting.py`), o'z jadvali
-(`crossings`), o'z rasmi (`counter_snapshot.jpg`) va o'z sahifasida. Kamera
-siklidagi chaqiruvi `try/except` ichida — counter qulasa logda yoziladi va
-**davomat ishlashda davom etadi**.
-
-Butunlay o'chirish: `"counter_enabled": false` → `./emon restart`.
+Полностью выключить: `"counter_enabled": false` → `./emon restart`.

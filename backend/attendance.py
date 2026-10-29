@@ -16,10 +16,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import config as cfgmod
 
 REASON_LABELS = {
-    "obed": "Obed",
-    "shifokor": "Shifokor",
-    "shaxsiy": "Shaxsiy ish",
-    "topshiriq": "Ish topshirig'i",
+    "obed": "Обед",
+    "shifokor": "Врач",
+    "shaxsiy": "Личное дело",
+    "topshiriq": "Рабочее поручение",
 }
 
 
@@ -47,10 +47,10 @@ def human_minutes(total: int) -> str:
     """Minutes as "1 soat 3 daqiqa" — a reader should not have to divide by 60."""
     hours, minutes = divmod(abs(int(total)), 60)
     if hours and minutes:
-        return f"{hours} soat {minutes} daqiqa"
+        return f"{hours} ч {minutes} мин"
     if hours:
-        return f"{hours} soat"
-    return f"{minutes} daqiqa"
+        return f"{hours} ч"
+    return f"{minutes} мин"
 
 
 def grade(cfg, ts, event):
@@ -59,20 +59,20 @@ def grade(cfg, ts, event):
         offset = cfgmod.minutes_from_start(cfg, ts)
         if offset > 0:
             return {"late_minutes": offset,
-                    "text": f"{human_minutes(offset)} kechikish"}
+                    "text": f"опоздание {human_minutes(offset)}"}
         if offset == 0:
-            return {"early_minutes": 0, "text": "o'z vaqtida"}
-        return {"early_minutes": -offset, "text": f"{human_minutes(offset)} erta"}
+            return {"early_minutes": 0, "text": "вовремя"}
+        return {"early_minutes": -offset, "text": f"раньше на {human_minutes(offset)}"}
 
     remaining = cfgmod.minutes_before_end(cfg, ts)
     if remaining > 0:
         # Left before the day was over: this is the case that needs a reason.
         return {"early_leave_minutes": remaining, "needs_reason": True,
-                "text": f"{human_minutes(remaining)} erta ketdi"}
+                "text": f"ушёл раньше на {human_minutes(remaining)}"}
     if remaining == 0:
-        return {"overtime_minutes": 0, "text": "to'liq kun"}
+        return {"overtime_minutes": 0, "text": "полный день"}
     return {"overtime_minutes": -remaining,
-            "text": f"{human_minutes(remaining)} qo'shimcha"}
+            "text": f"переработка {human_minutes(remaining)}"}
 
 
 def register_stand(con, cfg, employee_id, ts):
@@ -148,7 +148,7 @@ def close_stale(con, cfg, now):
             continue
         event_id = _insert(con, row["employee_id"], seen_at, row["local_day"],
                            "ketdi", "auto_close",
-                           note="Belgilanmagan — oxirgi ko'rinish bo'yicha yopildi")
+                           note="Не отмечено — закрыто по последнему появлению")
         closed.append({"id": event_id, "employee_id": row["employee_id"],
                        "ts": seen_at.isoformat()})
     return closed

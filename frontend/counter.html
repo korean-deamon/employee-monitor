@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kirish hisobi</title>
+<title>Учёт посещений</title>
 <style>
   :root {
     --paper: #f6f7f9; --surface: #fff; --ink: #1a1d23; --muted: #6b7280;
@@ -82,44 +82,44 @@
 
   <header>
     <div>
-      <h1>Kirish hisobi</h1>
+      <h1>Учёт посещений</h1>
       <div class="sub" id="dayLine">—</div>
     </div>
-    <a href="/">← Davomatga qaytish</a>
+    <a href="/">← Назад к посещаемости</a>
   </header>
 
   <div id="offNote"></div>
 
   <section>
     <div class="tiles">
-      <div class="tile in"><div class="k">Kirdi</div><div class="v" id="vIn">—</div>
-        <div class="note">bugun eshikdan kirganlar</div></div>
-      <div class="tile out"><div class="k">Chiqdi</div><div class="v" id="vOut">—</div>
-        <div class="note">bugun eshikdan chiqqanlar</div></div>
-      <div class="tile"><div class="k">Hozir ichkarida</div><div class="v" id="vInside">—</div>
-        <div class="note">kirdi − chiqdi, taxminiy</div></div>
+      <div class="tile in"><div class="k">Вошли</div><div class="v" id="vIn">—</div>
+        <div class="note">сегодня вошли через дверь</div></div>
+      <div class="tile out"><div class="k">Вышли</div><div class="v" id="vOut">—</div>
+        <div class="note">сегодня вышли через дверь</div></div>
+      <div class="tile"><div class="k">Сейчас внутри</div><div class="v" id="vInside">—</div>
+        <div class="note">вошли − вышли, приблизительно</div></div>
     </div>
   </section>
 
   <div class="cols">
     <section class="panel">
-      <h2>Kamera va chiziq</h2>
-      <div class="feed" id="feed"><div class="feed-note">Ulanmoqda…</div></div>
+      <h2>Камера и линия</h2>
+      <div class="feed" id="feed"><div class="feed-note">Подключение…</div></div>
       <div class="legend">
-        <span><i style="background:var(--line)"></i>sanash chizig'i</span>
-        <span><i style="background:var(--in)"></i>kirdi</span>
-        <span><i style="background:var(--out)"></i>chiqdi</span>
+        <span><i style="background:var(--line)"></i>линия подсчёта</span>
+        <span><i style="background:var(--in)"></i>вошёл</span>
+        <span><i style="background:var(--out)"></i>вышел</span>
       </div>
     </section>
 
     <section class="panel">
-      <h2>Oxirgi o'tishlar</h2>
-      <ul class="events" id="events"><li>Yuklanmoqda…</li></ul>
+      <h2>Последние проходы</h2>
+      <ul class="events" id="events"><li>Загрузка…</li></ul>
     </section>
   </div>
 
   <section class="panel">
-    <h2>Soatlar bo'yicha</h2>
+    <h2>По часам</h2>
     <div class="hours" id="hours"></div>
     <div id="hourLabels" style="display:flex;gap:3px"></div>
   </section>
@@ -142,10 +142,10 @@ function startStream() {
   if (streaming) return;
   streaming = true;
   const feed = document.getElementById("feed");
-  feed.innerHTML = `<img id="cstream" alt="Kamera" src="/api/counter/stream">`;
+  feed.innerHTML = `<img id="cstream" alt="Камера" src="/api/counter/stream">`;
   document.getElementById("cstream").addEventListener("error", () => {
     streaming = false;
-    feed.innerHTML = `<div class="feed-note">Oqim uzildi, qayta ulanmoqda…</div>`;
+    feed.innerHTML = `<div class="feed-note">Поток прерван, переподключение…</div>`;
   });
 }
 
@@ -159,7 +159,7 @@ function renderHours(hourly) {
   const box = document.getElementById("hours");
   const labels = document.getElementById("hourLabels");
   if (!hours.length) {
-    box.innerHTML = `<div class="empty" style="flex:1">Bugun o'tish yo'q</div>`;
+    box.innerHTML = `<div class="empty" style="flex:1">Сегодня проходов нет</div>`;
     labels.innerHTML = "";
     return;
   }
@@ -183,9 +183,9 @@ async function refresh() {
 
   document.getElementById("offNote").innerHTML = data.enabled ? "" : `
     <div class="off" style="margin-bottom:24px">
-      <b>Sanash o'chirilgan.</b> Yoqish uchun <code>data/config.json</code> da
-      <code>"counter_enabled": true</code> qilib, <code>./emon restart</code> deysiz.
-      Raqamlar va chiziq shundan keyin ishlaydi.
+      <b>Подсчёт выключен.</b> Чтобы включить, в <code>data/config.json</code>
+      поставьте <code>"counter_enabled": true</code> и выполните <code>./emon restart</code>.
+      После этого заработают цифры и линия.
     </div>`;
 
   const list = document.getElementById("events");
@@ -194,7 +194,7 @@ async function refresh() {
         <li><time>${hhmm(e.ts)}</time>
           <span class="pill ${e.direction === "kirdi" ? "in" : "out"}">${e.direction}</span>
         </li>`).join("")
-    : `<li style="color:var(--muted)">Hali o'tish yo'q</li>`;
+    : `<li style="color:var(--muted)">Проходов пока нет</li>`;
 
   renderHours(data.hourly);
   if (data.enabled) startStream();

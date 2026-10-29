@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Xodimlarni boshqarish</title>
+<title>Управление сотрудниками</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -127,99 +127,99 @@
 
   <header>
     <div>
-      <h1>Xodimlarni boshqarish</h1>
-      <div class="sub">Ro'yxatga qo'shish va yuzini skanerlash</div>
+      <h1>Управление сотрудниками</h1>
+      <div class="sub">Добавление в список и сканирование лица</div>
     </div>
-    <a class="back" href="/">← Davomatga qaytish</a>
+    <a class="back" href="/">← Назад к посещаемости</a>
   </header>
 
   <!-- Management password gate -->
   <div id="gate" class="gate panel" hidden>
-    <h2>Boshqaruv paroli</h2>
-    <p>Xodim qo'shish va o'chirish uchun alohida parol kerak.</p>
+    <h2>Пароль управления</h2>
+    <p>Для добавления и удаления сотрудников нужен отдельный пароль.</p>
     <label for="pw">Parol</label>
     <input id="pw" type="password" autocomplete="current-password">
     <div class="err" id="gateErr"></div>
-    <button id="gateBtn" style="margin-top:12px;width:100%">Kirish</button>
+    <button id="gateBtn" style="margin-top:12px;width:100%">Войти</button>
   </div>
 
   <!-- Management UI -->
   <div id="app" hidden>
     <div class="layout">
       <section class="panel">
-        <h2>Yangi xodim</h2>
+        <h2>Новый сотрудник</h2>
         <div id="status" class="status hidden"></div>
         <div class="fields">
-          <div><label for="first">Ism</label><input id="first" type="text" autocomplete="off"></div>
-          <div><label for="last">Familiya</label><input id="last" type="text" autocomplete="off"></div>
-          <div><label for="pos">Lavozim</label><input id="pos" type="text" autocomplete="off"></div>
+          <div><label for="first">Имя</label><input id="first" type="text" autocomplete="off"></div>
+          <div><label for="last">Фамилия</label><input id="last" type="text" autocomplete="off"></div>
+          <div><label for="pos">Должность</label><input id="pos" type="text" autocomplete="off"></div>
         </div>
-        <button id="addBtn">Qo'shish va yuzini skanerlash</button>
-        <p class="hint">Xodim kamera oldiga tursin. Tizim bir necha soniyada 5 ta namuna oladi —
-          shu vaqtda boshini biroz chapga, o'ngga burib tursa, tanish aniqroq bo'ladi.</p>
+        <button id="addBtn">Добавить и отсканировать лицо</button>
+        <p class="hint">Сотрудник должен встать перед камерой. Система снимет несколько образцов —
+          если при этом немного поворачивать голову влево и вправо, распознавание будет точнее.</p>
       </section>
 
       <section class="panel">
-        <h2>Kamera</h2>
+        <h2>Камера</h2>
         <div class="feed" id="feed"><div class="feed-note">Ulanmoqda…</div></div>
         <p class="hint" id="camNote">—</p>
       </section>
     </div>
 
     <section class="panel" id="codePanel" hidden>
-      <h2>Telegram bog'lanish kodi</h2>
+      <h2>Код привязки Telegram</h2>
       <p class="hint" id="codeWho"></p>
       <div class="code" id="codeValue"></div>
       <p class="hint">
-        Shu kodni xodimga bering. U botni ochib <b>/start</b> bosadi va kodni yuboradi.
-        Kod <b>bir marta</b> ishlaydi va <b>24 soat</b> amal qiladi.
+        Передайте этот код сотруднику. Он откроет бота, нажмёт <b>/start</b> и отправит код.
+        Код действует <b>один раз</b> и <b>24 часа</b>.
       </p>
-      <button class="small" id="codeClose">Yopish</button>
+      <button class="small" id="codeClose">Закрыть</button>
     </section>
 
     <section class="panel">
-      <h2>Ro'yxatdagi xodimlar</h2>
+      <h2>Сотрудники в списке</h2>
       <table>
-        <thead><tr><th>Ism familiya</th><th>Lavozim</th><th>Yuz namunalari</th><th>Telegram</th><th></th></tr></thead>
-        <tbody id="rows"><tr><td colspan="5" style="color:var(--muted)">Yuklanmoqda…</td></tr></tbody>
+        <thead><tr><th>Имя и фамилия</th><th>Должность</th><th>Образцы лица</th><th>Telegram</th><th></th></tr></thead>
+        <tbody id="rows"><tr><td colspan="5" style="color:var(--muted)">Загрузка…</td></tr></tbody>
       </table>
     </section>
 
     <section class="panel">
-      <h2>Davomatni tuzatish</h2>
+      <h2>Исправление посещаемости</h2>
       <div class="fixbar">
-        <label>Kun <input type="date" id="fixDay"></label>
-        <button class="small" id="fixAddBtn">Yozuv qo'shish</button>
+        <label>День <input type="date" id="fixDay"></label>
+        <button class="small" id="fixAddBtn">Добавить запись</button>
       </div>
 
       <div class="addrow" id="fixAdd" hidden>
         <select id="fixEmp"></select>
         <select id="fixEvent">
-          <option value="keldi">kirdi</option>
-          <option value="ketdi">chiqdi</option>
+          <option value="keldi">вошёл</option>
+          <option value="ketdi">вышел</option>
         </select>
         <input type="text" id="fixTime" value="09:00" placeholder="09:00"
                maxlength="5" inputmode="numeric" style="width:76px">
-        <input type="text" id="fixNote" placeholder="izoh (ixtiyoriy)">
-        <button class="small" id="fixSave">Saqlash</button>
-        <button class="small" id="fixCancelAdd">Bekor</button>
+        <input type="text" id="fixNote" placeholder="примечание (необязательно)">
+        <button class="small" id="fixSave">Сохранить</button>
+        <button class="small" id="fixCancelAdd">Отмена</button>
       </div>
 
       <p class="hint" id="fixStatus"></p>
       <table>
-        <thead><tr><th>Vaqt</th><th>Xodim</th><th>Hodisa</th><th>Manba</th><th></th></tr></thead>
-        <tbody id="fixRows"><tr><td colspan="5" class="hint">Yuklanmoqda…</td></tr></tbody>
+        <thead><tr><th>Время</th><th>Сотрудник</th><th>Событие</th><th>Источник</th><th></th></tr></thead>
+        <tbody id="fixRows"><tr><td colspan="5" class="hint">Загрузка…</td></tr></tbody>
       </table>
       <p class="hint">
-        Tuzatilgan yozuv <b>qo'lda</b> deb belgilanadi. Bekor qilingan yozuv
-        o'chirilmaydi — chizib qo'yiladi va qaytarish mumkin.
+        Исправленная запись помечается как <b>вручную</b>. Отменённая запись
+        не удаляется — она зачёркивается, и её можно вернуть.
       </p>
     </section>
 
     <section class="panel">
-      <h2>Telegram xabarlari</h2>
+      <h2>Сообщения Telegram</h2>
       <p class="hint" id="tgState">—</p>
-      <ul class="outbox" id="outbox"><li class="hint">Yuklanmoqda…</li></ul>
+      <ul class="outbox" id="outbox"><li class="hint">Загрузка…</li></ul>
     </section>
   </div>
 </div>
@@ -231,12 +231,12 @@ const jsonPost = async (url, body) => {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.detail || "Xatolik");
+  if (!r.ok) throw new Error(data.detail || "Ошибка");
   return data;
 };
 const getJSON = async (url) => {
   const r = await fetch(url);
-  if (!r.ok) throw new Error("Xatolik");
+  if (!r.ok) throw new Error("Ошибка");
   return r.json();
 };
 
@@ -268,7 +268,7 @@ function startStream() {
   if (streaming) return;
   streaming = true;
   const feed = document.getElementById("feed");
-  feed.innerHTML = `<img id="sImg" alt="Kamera tasviri" src="/api/camera/stream">`;
+  feed.innerHTML = `<img id="sImg" alt="Изображение камеры" src="/api/camera/stream">`;
   document.getElementById("sImg").addEventListener("error", () => {
     streaming = false;
     feed.innerHTML = `<div class="feed-note">Oqim uzildi.</div>`;
@@ -280,8 +280,8 @@ setInterval(async () => {
   try {
     const s = await getJSON("/api/camera/status");
     document.getElementById("camNote").textContent = s.online
-      ? (s.unknown_faces ? `${s.unknown_faces} ta notanish yuz ko'rinmoqda` : "Tanish ishlayapti")
-      : "Tanish skripti ishlamayapti — skanerlash ishlamaydi.";
+      ? (s.unknown_faces ? `видно неизвестных лиц: ${s.unknown_faces}` : "Распознавание работает")
+      : "Скрипт распознавания не запущен — сканирование не работает.";
     if (s.online) startStream();
   } catch {}
 }, 3000);
@@ -303,7 +303,7 @@ document.getElementById("addBtn").addEventListener("click", async () => {
   const first = document.getElementById("first").value.trim();
   const last = document.getElementById("last").value.trim();
   const position = document.getElementById("pos").value.trim();
-  if (!first) { showStatus("err", "Ism kiriting."); return; }
+  if (!first) { showStatus("err", "Введите имя."); return; }
 
   const btn = document.getElementById("addBtn");
   btn.disabled = true;
@@ -311,7 +311,7 @@ document.getElementById("addBtn").addEventListener("click", async () => {
     const { id } = await jsonPost("/api/admin/employees",
       { first_name: first, last_name: last, position });
     await jsonPost(`/api/admin/employees/${id}/capture`);
-    showStatus("run", "Kameraga qarab turing — namunalar olinmoqda…");
+    showStatus("run", "Смотрите в камеру — идёт съёмка образцов…");
     const result = await pollCapture(first, last, id);
     if (result === "duplicate") { loadEmployees(); return; }
     document.getElementById("first").value = "";
@@ -333,12 +333,12 @@ function pollCapture(first, last, newEmployeeId) {
       try { s = await getJSON("/api/admin/capture"); } catch { return; }
 
       if (s.state === "running") {
-        const step = s.pose ? ` · burchak ${s.pose}/${s.pose_total}` : "";
+        const step = s.pose ? ` · ракурс ${s.pose}/${s.pose_total}` : "";
         const note = s.message ? ` · ${s.message}` : "";
-        showStatus("run", `Namuna ${s.saved}/${s.samples || 8}${step}${note}`, s.instruction);
+        showStatus("run", `Образец ${s.saved}/${s.samples || 8}${step}${note}`, s.instruction);
       } else if (s.state === "done") {
         clearInterval(timer);
-        showStatus("done", `${first} ${last} ro'yxatga qo'shildi — ${s.saved} ta namuna olindi.`);
+        showStatus("done", `${first} ${last} добавлен в список — снято образцов: ${s.saved}.`);
         resolve("done");
       } else if (s.state === "duplicate") {
         clearInterval(timer);
@@ -347,11 +347,11 @@ function pollCapture(first, last, newEmployeeId) {
         if (newEmployeeId) {
           await fetch(`/api/admin/employees/${newEmployeeId}`, { method: "DELETE" });
         }
-        showStatus("err", s.message || "Bu yuz allaqachon ro'yxatda.");
+        showStatus("err", s.message || "Это лицо уже есть в списке.");
         resolve("duplicate");
       } else if (s.state === "timeout") {
         clearInterval(timer);
-        showStatus("err", `Yuz yetarlicha ko'rinmadi (${s.saved} ta namuna). Xodim qo'shildi — ro'yxatdan qayta skanerlang.`);
+        showStatus("err", `Лицо было видно недостаточно (образцов: ${s.saved}). Сотрудник добавлен — отсканируйте повторно из списка.`);
         resolve("timeout");
       }
       if (Date.now() - started > 105000) { clearInterval(timer); resolve("timeout"); }
@@ -375,18 +375,18 @@ function viewRow(p) {
     <td class="nm">${p.name}</td>
     <td class="pos">${p.position || "—"}</td>
     <td class="count ${p.face_samples ? "" : "none"}">
-      ${p.face_samples ? p.face_samples + " ta" : "yuzi kiritilmagan"}
+      ${p.face_samples ? p.face_samples : "лицо не внесено"}
     </td>
     <td class="tg">
       ${p.telegram_linked
-        ? `<span class="ok-tag">ulangan${p.username ? " · @" + p.username : ""}</span>
-           <button class="small" data-tgoff="${p.id}" data-name="${p.name}">Uzish</button>`
-        : `<button class="small" data-tgcode="${p.id}" data-name="${p.name}">Kod olish</button>`}
+        ? `<span class="ok-tag">привязан${p.username ? " · @" + p.username : ""}</span>
+           <button class="small" data-tgoff="${p.id}" data-name="${p.name}">Отвязать</button>`
+        : `<button class="small" data-tgcode="${p.id}" data-name="${p.name}">Получить код</button>`}
     </td>
     <td class="act">
-      <button class="small" data-edit="${p.id}">Tahrirlash</button>
-      <button class="small" data-rescan="${p.id}">Qayta skanerlash</button>
-      <button class="danger" data-del="${p.id}" data-name="${p.name}">O'chirish</button>
+      <button class="small" data-edit="${p.id}">Изменить</button>
+      <button class="small" data-rescan="${p.id}">Пересканировать</button>
+      <button class="danger" data-del="${p.id}" data-name="${p.name}">Удалить</button>
     </td>
   </tr>`;
 }
@@ -394,17 +394,17 @@ function viewRow(p) {
 function editRow(p) {
   return `<tr>
     <td>
-      <input type="text" id="ef-${p.id}" value="${esc(p.first_name)}" placeholder="Ism"
-             style="margin-bottom:6px" aria-label="Ism">
-      <input type="text" id="el-${p.id}" value="${esc(p.last_name)}" placeholder="Familiya"
-             aria-label="Familiya">
+      <input type="text" id="ef-${p.id}" value="${esc(p.first_name)}" placeholder="Имя"
+             style="margin-bottom:6px" aria-label="Имя">
+      <input type="text" id="el-${p.id}" value="${esc(p.last_name)}" placeholder="Фамилия"
+             aria-label="Фамилия">
     </td>
-    <td><input type="text" id="ep-${p.id}" value="${esc(p.position)}" placeholder="Lavozim"
-               aria-label="Lavozim"></td>
-    <td class="count">${p.face_samples ? p.face_samples + " ta" : "—"}</td>
+    <td><input type="text" id="ep-${p.id}" value="${esc(p.position)}" placeholder="Должность"
+               aria-label="Должность"></td>
+    <td class="count">${p.face_samples ? p.face_samples : "—"}</td>
     <td class="act">
-      <button class="small primary" data-save="${p.id}">Saqlash</button>
-      <button class="small" data-cancel="1">Bekor</button>
+      <button class="small primary" data-save="${p.id}">Сохранить</button>
+      <button class="small" data-cancel="1">Отмена</button>
     </td>
   </tr>`;
 }
@@ -412,7 +412,7 @@ function editRow(p) {
 function renderTable() {
   const rows = document.getElementById("rows");
   if (!employees.length) {
-    rows.innerHTML = `<tr><td colspan="5" style="color:var(--muted)">Hali hech kim qo'shilmagan</td></tr>`;
+    rows.innerHTML = `<tr><td colspan="5" style="color:var(--muted)">Пока никто не добавлен</td></tr>`;
     return;
   }
   rows.innerHTML = employees.map(p => (p.id === editingId ? editRow(p) : viewRow(p))).join("");
@@ -442,13 +442,13 @@ function renderTable() {
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data.detail || "Saqlanmadi");
       editingId = null;
-      showStatus("done", "O'zgarishlar saqlandi.");
+      showStatus("done", "Изменения сохранены.");
       loadEmployees();
     } catch (e) { showStatus("err", e.message); }
   }));
 
   rows.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
-    if (!confirm(`${b.dataset.name} ro'yxatdan o'chirilsinmi? Yuz ma'lumotlari ham o'chadi.`)) return;
+    if (!confirm(`Удалить ${b.dataset.name} из списка? Данные лица также будут удалены.`)) return;
     await fetch(`/api/admin/employees/${b.dataset.del}`, { method: "DELETE" });
     loadEmployees();
   }));
@@ -459,14 +459,14 @@ function renderTable() {
   }));
 
   rows.querySelectorAll("[data-tgoff]").forEach(b => b.addEventListener("click", async () => {
-    if (!confirm(`${b.dataset.name} — Telegram ulanishini uzamizmi?`)) return;
+    if (!confirm(`${b.dataset.name} — отвязать Telegram?`)) return;
     await fetch(`/api/admin/employees/${b.dataset.tgoff}/telegram`, { method: "DELETE" });
     loadEmployees();
   }));
 
   rows.querySelectorAll("[data-rescan]").forEach(b => b.addEventListener("click", async () => {
     await jsonPost(`/api/admin/employees/${b.dataset.rescan}/capture`);
-    showStatus("run", "Kameraga qarab turing — namunalar olinmoqda…");
+    showStatus("run", "Смотрите в камеру — идёт съёмка образцов…");
     await pollCapture("Xodim", "");
     loadEmployees();
   }));
@@ -474,7 +474,7 @@ function renderTable() {
 
 /* ── Telegram ────────────────────────────────────────── */
 function showCode(name, code) {
-  document.getElementById("codeWho").textContent = `${name} uchun:`;
+  document.getElementById("codeWho").textContent = `Для ${name}:`;
   document.getElementById("codeValue").textContent = code;
   document.getElementById("codePanel").hidden = false;
   document.getElementById("codePanel").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -484,8 +484,8 @@ document.getElementById("codeClose").addEventListener("click", () => {
 });
 
 const OUTBOX_KINDS = {
-  keldi: "kirdi", ketdi: "chiqdi", ketdi_savol: "erta chiqish — savol",
-  auto_close: "o'zi yopildi", allaqachon: "takroriy",
+  keldi: "вошёл", ketdi: "вышел", ketdi_savol: "ранний уход — вопрос",
+  auto_close: "закрыто системой", allaqachon: "повтор",
 };
 
 async function loadOutbox() {
@@ -493,14 +493,14 @@ async function loadOutbox() {
   try { data = await getJSON("/api/admin/outbox?limit=25"); } catch { return; }
 
   document.getElementById("tgState").textContent = !data.enabled
-    ? "Bot o'chirilgan. Xabarlar tayyorlanadi va shu yerda ko'rinadi, lekin yuborilmaydi."
+    ? "Бот выключен. Сообщения готовятся и видны здесь, но не отправляются."
     : (data.sending
-        ? "Bot ishlayapti, xabarlar yuborilayapti."
-        : "Bot ishlayapti, lekin xabar yuborish o'chirilgan — faqat shu yerda ko'rinadi.");
+        ? "Бот работает, сообщения отправляются."
+        : "Бот работает, но отправка выключена — сообщения видны только здесь.");
 
   const el = document.getElementById("outbox");
   if (!data.messages.length) {
-    el.innerHTML = `<li class="hint">Hali xabar yo'q</li>`;
+    el.innerHTML = `<li class="hint">Сообщений пока нет</li>`;
     return;
   }
   el.innerHTML = data.messages.map(m => {
@@ -514,7 +514,7 @@ async function loadOutbox() {
       <span class="state">${OUTBOX_KINDS[m.kind] || m.kind}</span>${state}
       <span class="when">${m.created_at}</span>
       <div class="msg">${m.body}</div>
-      ${keys ? `<div class="keys">tugmalar: ${keys}</div>` : ""}
+      ${keys ? `<div class="keys">кнопки: ${keys}</div>` : ""}
     </li>`;
   }).join("");
 }
@@ -522,8 +522,8 @@ async function loadOutbox() {
 /* ── Davomatni tuzatish ─────────────────────────────── */
 const EVENT_LABEL = { keldi: "kirdi", ketdi: "chiqdi" };
 const SOURCE_LABEL = {
-  deliberate: "kelib turdi", first_sighting: "turmadi",
-  auto_close: "o'zi yopildi", manual: "qo'lda",
+  deliberate: "подошёл к камере", first_sighting: "не останавливался",
+  auto_close: "закрыто системой", manual: "вручную",
 };
 
 function today() {
@@ -545,7 +545,7 @@ async function loadFix() {
 
   const body = document.getElementById("fixRows");
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="5" class="hint">Bu kunda yozuv yo'q</td></tr>`;
+    body.innerHTML = `<tr><td colspan="5" class="hint">За этот день записей нет</td></tr>`;
     return;
   }
   body.innerHTML = rows.map(r => `
@@ -556,32 +556,32 @@ async function loadFix() {
       <td class="src">${SOURCE_LABEL[r.source] || r.source}</td>
       <td class="act">
         ${r.cancelled
-          ? `<button class="small" data-restore="${r.id}">Qaytarish</button>`
-          : `<button class="small" data-fixtime="${r.id}" data-ts="${r.ts}">Vaqtini tuzatish</button>
-             <button class="danger" data-strike="${r.id}">Bekor qilish</button>`}
+          ? `<button class="small" data-restore="${r.id}">Вернуть</button>`
+          : `<button class="small" data-fixtime="${r.id}" data-ts="${r.ts}">Исправить время</button>
+             <button class="danger" data-strike="${r.id}">Отменить</button>`}
       </td>
     </tr>`).join("");
 
   body.querySelectorAll("[data-fixtime]").forEach(b => b.addEventListener("click", async () => {
     const current = b.dataset.ts.slice(11, 16);
-    const next = prompt(`Yangi vaqt (SS:DD), hozirgisi ${current}:`, current);
+    const next = prompt(`Новое время (ЧЧ:ММ), сейчас ${current}:`, current);
     if (!next || !/^\d{2}:\d{2}$/.test(next)) return;
     await send(`/api/admin/events/${b.dataset.fixtime}`, "PATCH",
-               { ts: `${fixDay.value}T${next}`, note: "vaqt qo'lda tuzatildi" });
-    fixStatus.textContent = `Vaqt ${next} ga o'zgartirildi.`;
+               { ts: `${fixDay.value}T${next}`, note: "время исправлено вручную" });
+    fixStatus.textContent = `Время изменено на ${next}.`;
     loadFix();
   }));
 
   body.querySelectorAll("[data-strike]").forEach(b => b.addEventListener("click", async () => {
-    if (!confirm("Bu yozuv bekor qilinsinmi? Keyin qaytarish mumkin.")) return;
+    if (!confirm("Отменить эту запись? Её можно будет вернуть.")) return;
     await send(`/api/admin/events/${b.dataset.strike}`, "DELETE");
-    fixStatus.textContent = "Yozuv bekor qilindi — qaytarish mumkin.";
+    fixStatus.textContent = "Запись отменена — её можно вернуть.";
     loadFix();
   }));
 
   body.querySelectorAll("[data-restore]").forEach(b => b.addEventListener("click", async () => {
     await send(`/api/admin/events/${b.dataset.restore}/restore`, "POST");
-    fixStatus.textContent = "Yozuv qaytarildi.";
+    fixStatus.textContent = "Запись возвращена.";
     loadFix();
   }));
 }
@@ -593,7 +593,7 @@ async function send(url, method, payload) {
     body: payload ? JSON.stringify(payload) : undefined,
   });
   if (!r.ok) {
-    fixStatus.textContent = (await r.json().catch(() => ({}))).detail || "Xatolik";
+    fixStatus.textContent = (await r.json().catch(() => ({}))).detail || "Ошибка";
     throw new Error("failed");
   }
   return r.json();
@@ -605,10 +605,10 @@ async function fillEmployeeSelect() {
     const people = await getJSON("/api/employees");
     select.innerHTML = people.length
       ? people.map(p => `<option value="${p.id}">${p.name}</option>`).join("")
-      : `<option value="">xodim yo'q</option>`;
+      : `<option value="">нет сотрудников</option>`;
   } catch {
-    select.innerHTML = `<option value="">ro'yxat yuklanmadi</option>`;
-    fixStatus.textContent = "Xodimlar ro'yxatini yuklab bo'lmadi.";
+    select.innerHTML = `<option value="">список не загружен</option>`;
+    fixStatus.textContent = "Не удалось загрузить список сотрудников.";
   }
 }
 
@@ -625,11 +625,11 @@ document.getElementById("fixCancelAdd").addEventListener("click", () => {
 document.getElementById("fixSave").addEventListener("click", async () => {
   const time = document.getElementById("fixTime").value.trim();
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
-    fixStatus.textContent = "Vaqtni SS:DD ko'rinishida kiriting, masalan 09:00.";
+    fixStatus.textContent = "Введите время в формате ЧЧ:ММ, например 09:00.";
     return;
   }
   const employee = document.getElementById("fixEmp").value;
-  if (!employee) { fixStatus.textContent = "Xodim tanlanmadi."; return; }
+  if (!employee) { fixStatus.textContent = "Сотрудник не выбран."; return; }
   try {
     await send("/api/admin/events", "POST", {
       employee_id: Number(employee),
@@ -639,7 +639,7 @@ document.getElementById("fixSave").addEventListener("click", async () => {
     });
     document.getElementById("fixAdd").hidden = true;
     document.getElementById("fixNote").value = "";
-    fixStatus.textContent = "Yozuv qo'shildi.";
+    fixStatus.textContent = "Запись добавлена.";
     loadFix();
   } catch {}
 });

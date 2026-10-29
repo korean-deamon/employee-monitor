@@ -42,68 +42,68 @@ con = db.get_conn()
 ali = db.create_employee(con, "Ali", "Valiyev")
 vali = db.create_employee(con, "Vali", "Aliyev")
 
-print("\n1. Ertalab ataylab turish = keldi")
+print("\n1. Осознанная остановка утром = приход")
 r = attendance.register_stand(con, cfg, ali, at(8, 47))
-check("hodisa", r["event"], "keldi")
-check("manba", "recorded", r["status"])
-check("erta daqiqa", r["grade"]["early_minutes"], 13)
+check("событие", r["event"], "keldi")
+check("источник", "recorded", r["status"])
+check("минут раньше", r["grade"]["early_minutes"], 13)
 
-print("\n2. Darhol qayta turish = takroriy, ketdi emas")
+print("\n2. Сразу повторно = повтор, а не уход")
 r = attendance.register_stand(con, cfg, ali, at(8, 48))
-check("holat", r["status"], "already")
-check("hodisa", r["event"], "keldi")
+check("состояние", r["status"], "already")
+check("событие", r["event"], "keldi")
 
-print("\n3. 18:00 dan oldin turish = ketdi + sabab kerak")
+print("\n3. Остановка до 18:00 = уход + нужна причина")
 r = attendance.register_stand(con, cfg, ali, at(15, 20))
-check("hodisa", r["event"], "ketdi")
-check("sabab kerak", r["grade"]["needs_reason"], True)
-check("erta ketish", r["grade"]["early_leave_minutes"], 160)
+check("событие", r["event"], "ketdi")
+check("нужна причина", r["grade"]["needs_reason"], True)
+check("ранний уход", r["grade"]["early_leave_minutes"], 160)
 
-print("\n4. Qaytib kelish = yangi keldi (obed o'zi yopiladi)")
+print("\n4. Возвращение = новый приход (перерыв закрывается сам)")
 r = attendance.register_stand(con, cfg, ali, at(16, 10))
-check("hodisa", r["event"], "keldi")
+check("событие", r["event"], "keldi")
 
-print("\n5. 18:00 dan keyin turish = ketdi, sabab kerak emas")
+print("\n5. Остановка после 18:00 = уход, причина не нужна")
 r = attendance.register_stand(con, cfg, ali, at(18, 30))
-check("hodisa", r["event"], "ketdi")
-check("sabab kerak emas", r["grade"].get("needs_reason"), None)
-check("qo'shimcha vaqt", r["grade"]["overtime_minutes"], 30)
+check("событие", r["event"], "ketdi")
+check("причина не нужна", r["grade"].get("needs_reason"), None)
+check("переработка", r["grade"]["overtime_minutes"], 30)
 
-print("\n6. Kechikib kelish")
+print("\n6. Приход с опозданием")
 r = attendance.register_stand(con, cfg, vali, at(9, 17))
-check("hodisa", r["event"], "keldi")
-check("kechikish", r["grade"]["late_minutes"], 17)
+check("событие", r["event"], "keldi")
+check("опоздание", r["grade"]["late_minutes"], 17)
 
-print("\n7. Turmagan odam ham keldi bo'ladi (zaxira)")
+print("\n7. Не остановившийся тоже получает приход (запасной путь)")
 dil = db.create_employee(con, "Dilnoza", "Karimova")
 r = attendance.register_first_sighting(con, cfg, dil, at(8, 55))
-check("hodisa", r["event"], "keldi")
-check("ikkinchi marta yozmaydi",
+check("событие", r["event"], "keldi")
+check("второй раз не записывает",
       attendance.register_first_sighting(con, cfg, dil, at(9, 5)), None)
 
-print("\n8. Kun oxiri — ochiq kun o'zi yopiladi")
+print("\n8. Конец дня — открытый день закрывается сам")
 con.execute("INSERT INTO presence_samples (employee_id, ts) VALUES (?, ?)",
             (vali, at(17, 55).isoformat()))
 con.commit()
 closed = attendance.close_stale(con, cfg, at(18, 40))
 # Vali (last seen 17:55) and Dilnoza (seen once at 08:55, never again) both have
 # an arrival with nothing after it, so both days get closed.
-check("yopildi", len(closed), 2)
+check("закрыт", len(closed), 2)
 by_emp = {c["employee_id"]: c["ts"] for c in closed}
-check("oxirgi ko'rinish vaqti bilan", by_emp[vali], at(17, 55).isoformat())
-check("namunasi yo'q bo'lsa kelish vaqti bilan", by_emp[dil], at(8, 55).isoformat())
-check("hali ko'rinib turgan odam yopilmaydi",
+check("по времени последнего появления", by_emp[vali], at(17, 55).isoformat())
+check("без образцов — по времени прихода", by_emp[dil], at(8, 55).isoformat())
+check("кто ещё виден, не закрывается",
       len(attendance.close_stale(con, cfg, at(18, 0))), 0)
 
-print("\n9. Kun hisobi")
+print("\n9. Итоги дня")
 s = attendance.day_summary(con, cfg, ali, cfgmod.local_day(cfg, at(12, 0)))
-check("keldi", s["arrived"], at(8, 47).isoformat())
-check("ketdi", s["left"], at(18, 30).isoformat())
-check("tanaffus soni", len(s["breaks"]), 1)
-check("tanaffus 50 daqiqa", s["breaks"][0]["seconds"], 50 * 60)
-check("ishlagan vaqti", s["worked_seconds"], (6 * 3600 + 33 * 60) + (2 * 3600 + 20 * 60))
+check("приход", s["arrived"], at(8, 47).isoformat())
+check("уход", s["left"], at(18, 30).isoformat())
+check("число перерывов", len(s["breaks"]), 1)
+check("перерыв 50 минут", s["breaks"][0]["seconds"], 50 * 60)
+check("отработанное время", s["worked_seconds"], (6 * 3600 + 33 * 60) + (2 * 3600 + 20 * 60))
 
-print("\n10. Turish aniqlash — yonidan o'tish yozilmaydi")
+print("\n10. Остановка — проход мимо не записывается")
 det = StandDetector(cfg)
 fired = None
 for i in range(12):                       # face crosses the frame over ~3s
@@ -111,27 +111,27 @@ for i in range(12):                       # face crosses the frame over ~3s
     fired = det.update([{"employee_id": ali, "bbox": (x, 0, x + 260, 260)}], 1280, i * 0.3)
     if fired:
         break
-check("o'tib ketgan odam", fired, None)
+check("прошедший мимо", fired, None)
 
-print("\n11. Turish aniqlash — joyida turish yoziladi")
+print("\n11. Остановка — стоящий на месте записывается")
 det = StandDetector(cfg)
 fired = None
 for i in range(14):
     fired = det.update([{"employee_id": ali, "bbox": (500, 0, 760, 260)}], 1280, i * 0.3)
     if fired:
         break
-check("kelib turgan odam", fired, ali)
+check("подошедший и стоящий", fired, ali)
 
-print("\n12. Turish aniqlash — uzoqdagi yuz hisobga olinmaydi")
+print("\n12. Остановка — далёкое лицо не учитывается")
 det = StandDetector(cfg)
 fired = None
 for i in range(14):
     fired = det.update([{"employee_id": ali, "bbox": (500, 0, 600, 100)}], 1280, i * 0.3)
     if fired:
         break
-check("100px yuz", fired, None)
+check("лицо 100px", fired, None)
 
-print("\n13. Ikki odam almashib tursa, ism taxmin qilinmaydi")
+print("\n13. Если двое сменяют друг друга, имя не угадывается")
 det = StandDetector(cfg)
 fired = None
 for i in range(14):
@@ -139,9 +139,9 @@ for i in range(14):
     fired = det.update([{"employee_id": who, "bbox": (500, 0, 760, 260)}], 1280, i * 0.3)
     if fired:
         break
-check("aralash ovoz", fired, None)
+check("смешанное голосование", fired, None)
 
-print("\n14. Bitta kadr tushib qolsa turish nolga qaytmaydi")
+print("\n14. Пропуск кадра не сбрасывает остановку")
 det = StandDetector(cfg)
 fired = None
 for i in range(14):
@@ -150,17 +150,17 @@ for i in range(14):
     fired = det.update(seen, 1280, i * 0.3)
     if fired:
         break
-check("kadr tushishiga chidadi", fired, ali)
+check("выдержал пропуск кадра", fired, ali)
 
-print("\n15. Yuz uzoq ketsa turish bekor bo'ladi")
+print("\n15. Если лицо исчезло надолго, остановка отменяется")
 det = StandDetector(cfg)
 det.update([{"employee_id": ali, "bbox": (500, 0, 760, 260)}], 1280, 0.0)
 det.update([], 1280, 2.0)        # gone longer than stand_gap_seconds
 fired = None
 for i in range(6):               # only 1.8s of standing after the gap
     fired = det.update([{"employee_id": ali, "bbox": (500, 0, 760, 260)}], 1280, 2.1 + i * 0.3)
-check("hisob qaytadan boshlandi", fired, None)
+check("отсчёт начался заново", fired, None)
 
 con.close()
-print(f"\n{'=' * 46}\n{ok} ok, {fail} xato\n")
+print(f"\n{'=' * 46}\n{ok} ok, {fail} ошибок\n")
 sys.exit(1 if fail else 0)
